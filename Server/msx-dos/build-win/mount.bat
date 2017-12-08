@@ -1,0 +1,1 @@
+@imdisk -a -f "\bin\NestorMSX\DiskImages\NextorAndMsxDos.dsk" -m Y: -o rem
