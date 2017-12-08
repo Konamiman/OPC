@@ -57,11 +57,22 @@ enum TcpipErrorCodes {
     ERR_INV_OPER
 };
 
+const byte TCP_ESTABLISHED = 4;
 
     /* MSX-DOS functions */
 
 #define _TERM0 0
 #define _TERM 0x62
+
+
+    /* Some handy defines */
+
+typedef unsigned char bool;
+#define false (0)
+#define true (!false)
+
+#define print printf
+#define LetTcpipBreathe() UnapiCall(&codeBlock, TCPIP_WAIT, &regs, REGS_NONE, REGS_NONE)
 
 
     /* Strings */
@@ -84,15 +95,15 @@ int argumentsCount;
 Z80_registers regs;
 unapi_code_block codeBlock;
 int port;
-
-
-    /* Some handy defines */
-
-typedef unsigned char bool;
-#define false (0)
-#define true (!false)
-
-#define print printf
+bool connectionIsEstablished = false;
+int connectionNumber = -1;
+struct {
+    byte remoteIP[4];
+    uint remotePort;
+    uint localPort;
+    int userTimeout;
+    byte flags;
+} tcpConnectionParameters; 
 
 
     /* Function prototypes */
@@ -102,8 +113,12 @@ void PrintTitle();
 void PrintUsageAndEnd();
 void ParseParameters();
 void Terminate(const char* errorMessage);
+void TerminateWithErrorCode(byte errorCode);
 void InitializeTcpipUnapi();
 bool EscIsPressed();
+void OpenPassiveTcpConnection();
+void CloseTcpConnection();
+void HandleConnectionLifetime();
 
 
 /**********************
@@ -123,14 +138,16 @@ int main(char** argv, int argc)
     ParseParameters();
     InitializeTcpipUnapi();
 
+    OpenPassiveTcpConnection();
     print("--- Press ESC at any time to exit\r\n\r\n");
 
     while(!EscIsPressed())
     {
-        //Application main loop
+        LetTcpipBreathe();
+        HandleConnectionLifetime();
     }
 
-    Terminate(NULL);
+    TerminateWithErrorCode(0);
     return 0;
 }
 
@@ -169,8 +186,15 @@ void Terminate(const char* errorMessage)
     if(errorMessage != NULL) {
         printf("\r\x1BK*** %s\r\n", errorMessage);
     }
-    
-    regs.Bytes.B = (errorMessage == NULL ? 0 : 1);
+
+    TerminateWithErrorCode(1);
+}
+
+void TerminateWithErrorCode(byte errorCode)
+{
+    CloseTcpConnection();
+
+    regs.Bytes.B = errorCode;
     DosCall(_TERM, &regs, REGS_MAIN, REGS_NONE);
     DosCall(_TERM0, &regs, REGS_MAIN, REGS_NONE);
 }
@@ -193,9 +217,87 @@ void InitializeTcpipUnapi()
     
     regs.Bytes.B = 0;
     UnapiCall(&codeBlock, TCPIP_TCP_ABORT, &regs, REGS_MAIN, REGS_NONE);
+
+    tcpConnectionParameters.remoteIP[0] = 0;
+    tcpConnectionParameters.remoteIP[1] = 0;
+    tcpConnectionParameters.remoteIP[2] = 0;
+    tcpConnectionParameters.remoteIP[3] = 0;
+    tcpConnectionParameters.localPort = port;
+    tcpConnectionParameters.userTimeout = 0;
+    tcpConnectionParameters.flags = 1; //passive connection
 }
 
 bool EscIsPressed()
 {
     return (*((byte*)0xFBEC) & 4) == 0;
+}
+
+void OpenPassiveTcpConnection()
+{
+    byte error;
+
+    regs.Words.HL = (int)&tcpConnectionParameters;
+    UnapiCall(&codeBlock, TCPIP_TCP_OPEN, &regs, REGS_MAIN, REGS_MAIN);
+    error = (byte)regs.Bytes.A;
+    if(error == (byte)ERR_NO_FREE_CONN) {
+        Terminate("No free TCP connections available");
+    }
+    else if(error == (byte)ERR_NO_NETWORK) {
+        Terminate("No network connection available");
+    }
+    else if(error != 0) {
+        printf("Unexpected error when opening TCP connection: %d", regs.Bytes.A);
+        Terminate(NULL);
+    }
+
+    connectionNumber = regs.Bytes.B;
+    connectionIsEstablished = false;
+}
+
+void CloseTcpConnection()
+{
+    if(connectionNumber == -1) return;
+
+    regs.Bytes.B = connectionNumber;
+    UnapiCall(&codeBlock, TCPIP_TCP_ABORT, &regs, REGS_MAIN, REGS_NONE);
+    connectionIsEstablished = false;
+    connectionNumber = -1;
+}
+
+void HandleConnectionLifetime()
+{
+    byte tcpState;
+    bool wasPreviouslyEstablished = connectionIsEstablished;
+    bool previouslyConnectionExisted = (connectionNumber != -1);
+    bool currentlyNotEstablished = false;
+
+    regs.Bytes.B = connectionNumber;
+    regs.Words.HL = 0;
+    UnapiCall(&codeBlock, TCPIP_TCP_STATE, &regs, REGS_MAIN, REGS_MAIN);
+
+    if(regs.Bytes.A == 0) {
+        tcpState = regs.Bytes.B;
+
+        if(tcpState == TCP_ESTABLISHED) {
+            connectionIsEstablished = true;
+        }
+        else if(tcpState > TCP_ESTABLISHED) {
+            CloseTcpConnection();
+        }
+    }
+    else {
+        connectionNumber = -1;
+    }
+
+    if(connectionIsEstablished && !wasPreviouslyEstablished) {
+        print("Client onnected!\r\n");
+    }
+
+    if(connectionNumber == -1) {
+        if(previouslyConnectionExisted) {
+            print("Disconnected...\r\n");
+        }
+
+        OpenPassiveTcpConnection();
+    }
 }
