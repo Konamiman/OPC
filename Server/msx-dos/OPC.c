@@ -57,6 +57,15 @@ enum TcpipErrorCodes {
     ERR_INV_OPER
 };
 
+enum OpcCommands {
+    OPC_PING = 0,
+    OPC_EXECUTE = 0x10,
+    OPC_READ_MEM = 0x20,
+    OPC_WRITE_MEM = 0x30,
+    OPC_READ_PORT = 0x40,
+    OPC_WRITE_PORT = 0x50
+};
+
 const byte TCP_ESTABLISHED = 4;
 
     /* MSX-DOS functions */
@@ -73,6 +82,7 @@ typedef unsigned char bool;
 
 #define print printf
 #define LetTcpipBreathe() UnapiCall(&codeBlock, TCPIP_WAIT, &regs, REGS_NONE, REGS_NONE)
+#define AbortTcpConnection() CloseTcpConnection(true)
 
 
     /* Strings */
@@ -103,7 +113,7 @@ struct {
     uint localPort;
     int userTimeout;
     byte flags;
-} tcpConnectionParameters; 
+} tcpConnectionParameters;
 
 
     /* Function prototypes */
@@ -117,8 +127,13 @@ void TerminateWithErrorCode(byte errorCode);
 void InitializeTcpipUnapi();
 bool EscIsPressed();
 void OpenPassiveTcpConnection();
-void CloseTcpConnection();
+void CloseTcpConnection(bool abort);
 void HandleConnectionLifetime();
+int GetByteFromConnection();
+void ProcessReceivedByte(byte datum);
+void SendErrorMessage(const char* message);
+void SendByte(byte datum, bool push);
+void SendBytes(byte* data, int length, bool push);
 
 
 /**********************
@@ -127,6 +142,8 @@ void HandleConnectionLifetime();
 
 int main(char** argv, int argc)
 {
+    int datum;
+
     arguments = argv;
     argumentsCount = argc;
 
@@ -145,6 +162,11 @@ int main(char** argv, int argc)
     {
         LetTcpipBreathe();
         HandleConnectionLifetime();
+
+        datum = GetByteFromConnection();
+        if(datum != -1) {
+            ProcessReceivedByte((byte)datum);
+        }
     }
 
     TerminateWithErrorCode(0);
@@ -192,7 +214,7 @@ void Terminate(const char* errorMessage)
 
 void TerminateWithErrorCode(byte errorCode)
 {
-    CloseTcpConnection();
+    AbortTcpConnection();
 
     regs.Bytes.B = errorCode;
     DosCall(_TERM, &regs, REGS_MAIN, REGS_NONE);
@@ -254,12 +276,12 @@ void OpenPassiveTcpConnection()
     connectionIsEstablished = false;
 }
 
-void CloseTcpConnection()
+void CloseTcpConnection(bool abort)
 {
     if(connectionNumber == -1) return;
 
     regs.Bytes.B = connectionNumber;
-    UnapiCall(&codeBlock, TCPIP_TCP_ABORT, &regs, REGS_MAIN, REGS_NONE);
+    UnapiCall(&codeBlock, abort ? TCPIP_TCP_ABORT : TCPIP_TCP_CLOSE, &regs, REGS_MAIN, REGS_NONE);
     connectionIsEstablished = false;
     connectionNumber = -1;
 }
@@ -282,7 +304,7 @@ void HandleConnectionLifetime()
             connectionIsEstablished = true;
         }
         else if(tcpState > TCP_ESTABLISHED) {
-            CloseTcpConnection();
+            AbortTcpConnection();
         }
     }
     else {
@@ -290,7 +312,7 @@ void HandleConnectionLifetime()
     }
 
     if(connectionIsEstablished && !wasPreviouslyEstablished) {
-        print("Client onnected!\r\n");
+        print("Client connected!\r\n");
     }
 
     if(connectionNumber == -1) {
@@ -299,5 +321,71 @@ void HandleConnectionLifetime()
         }
 
         OpenPassiveTcpConnection();
+    }
+}
+
+int GetByteFromConnection()
+{
+    byte datum;
+
+    if(!connectionIsEstablished) {
+        return -1;
+    }
+
+    regs.Bytes.B = connectionNumber;
+    regs.Words.DE = (short)&datum;
+    regs.Words.HL = 1;
+    UnapiCall(&codeBlock, TCPIP_TCP_RCV, &regs, REGS_MAIN, REGS_MAIN);
+
+    if(regs.Bytes.A != 0 || regs.Words.BC == 0) {
+        return -1;
+    } 
+    else {
+        return datum;
+    }
+}
+
+void ProcessReceivedByte(byte datum)
+{
+    byte commandCode = datum & 0xF0;
+
+    if(commandCode == OPC_PING) {
+        print("--- Received PING\r\n");
+        SendByte(0, false);
+        SendByte(datum, true);
+    }
+    else {
+        print("*** Unknown command received, disconnecting\r\n");
+        SendErrorMessage("Unknown command");
+        LetTcpipBreathe();
+        AbortTcpConnection();
+    }
+}
+
+void SendErrorMessage(const char* message)
+{
+    byte length = strlen(message);
+    SendByte(length, false);
+    SendBytes((byte*)message, length, true);
+}
+
+void SendByte(byte datum, bool push)
+{
+    SendBytes(&datum, 1, push);
+}
+
+void SendBytes(byte* data, int length, bool push)
+{
+    if(connectionNumber == -1) return;
+
+    regs.Bytes.B = connectionNumber;
+    regs.Words.DE = (short)data;
+    regs.Words.HL = (short)length;
+    regs.Bytes.C = push ? 1 : 0;
+
+    while(true) {
+        UnapiCall(&codeBlock, TCPIP_TCP_SEND, &regs, REGS_MAIN, REGS_AF);
+        if(regs.Bytes.A != ERR_BUFFER) break;
+        LetTcpipBreathe();
     }
 }
