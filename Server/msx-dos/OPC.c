@@ -17,6 +17,21 @@
    Comments are welcome: konamiman@konamiman.com
 */
 
+#define DEBUG
+
+#ifdef DEBUG
+#define debug(x) {print("--- ");print(x);print("\r\n");}
+#define debug2(x,y) {print("--- ");printf(x,y);print("\r\n");}
+#define debug3(x,y,z) {print("--- ");printf(x,y,z);print("\r\n");}
+#define debug4(x,y,z,a) {print("--- ");printf(x,y,z,a);print("\r\n");}
+#define debug5(x,y,z,a,b) {print("--- ");printf(x,y,z,a,b);print("\r\n");}
+#else
+#define debug(x)
+#define debug2(x,y)
+#define debug3(x,y,z)
+#define debug4(x,y,z,a)
+#define debug5(x,y,z,a,b)
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -64,6 +79,13 @@ enum OpcCommands {
     OPC_WRITE_MEM = 0x30,
     OPC_READ_PORT = 0x40,
     OPC_WRITE_PORT = 0x50
+};
+
+enum PendingCommandState {
+    PCMD_NONE = 0,
+    PCMD_PARTIAL = 1,
+    PCMD_WRITING = 2,
+    PCMD_FULL = 3
 };
 
 const byte TCP_ESTABLISHED = 4;
@@ -114,6 +136,37 @@ struct {
     int userTimeout;
     byte flags;
 } tcpConnectionParameters;
+byte* executeCommandPayloadLengths[4] = { 4, 10, 14, 22 };
+
+struct {
+    //from PendingCommandState
+    byte state;
+
+    //First byte of command with low nibble stripped out
+    byte commandCode;
+
+    //How many bytes left to have received a completed command?
+    //(for "write" does not include the bytes to be written)
+    int remainingBytes;
+
+    //For execution, read or write
+    int address;
+
+    union {
+        int memoryContents; //for "Read" and "Write"
+        struct {
+            byte input;
+            byte output;
+        } registers; //for "Execute"
+    } dataLength;
+
+    //Storage for incomplete command.
+    //For "Write" commands this does not include the bytes to write.
+    //Max length is for "Execute": command + address + 10 register pairs
+    byte buffer[23];
+
+    byte* bufferWritePointer;
+} pendingCommand;
 
 
     /* Function prototypes */
@@ -130,6 +183,12 @@ void OpenPassiveTcpConnection();
 void CloseTcpConnection(bool abort);
 void HandleConnectionLifetime();
 int GetByteFromConnection();
+byte ProcessFirstCommandByte(byte datum);
+byte ProcessNextCommandByte(byte datum);
+byte ProcessNextByteToWrite(byte datum);
+void RunExecuteCodeCommand();
+void LoadRegistersBeforeExecutingCode(byte length);
+void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
 void SendErrorMessage(const char* message);
 void SendByte(byte datum, bool push);
@@ -157,6 +216,7 @@ int main(char** argv, int argc)
 
     OpenPassiveTcpConnection();
     print("--- Press ESC at any time to exit\r\n\r\n");
+    pendingCommand.state = PCMD_NONE;
 
     while(!EscIsPressed())
     {
@@ -347,19 +407,138 @@ int GetByteFromConnection()
 
 void ProcessReceivedByte(byte datum)
 {
+    switch(pendingCommand.state)
+    {
+        case PCMD_NONE:
+            pendingCommand.state = ProcessFirstCommandByte(datum);
+            if(pendingCommand.state == PCMD_PARTIAL) {
+                pendingCommand.buffer[0] = datum;
+                pendingCommand.bufferWritePointer = (byte*)&(pendingCommand.buffer[1]);
+            }
+            break;
+        case PCMD_PARTIAL:
+            pendingCommand.state = ProcessNextCommandByte(datum);
+            break;
+        case PCMD_WRITING:
+            pendingCommand.state = ProcessNextByteToWrite(datum);
+    };
+
+    if(pendingCommand.state == PCMD_FULL) {
+        RunExecuteCodeCommand();
+        pendingCommand.state = PCMD_NONE;
+    }
+}
+
+byte ProcessFirstCommandByte(byte datum)
+{
     byte commandCode = datum & 0xF0;
 
     if(commandCode == OPC_PING) {
-        print("--- Received PING\r\n");
+        debug("Received PING\r\n");
         SendByte(0, false);
         SendByte(datum, true);
+        return PCMD_NONE;
     }
-    else {
-        print("*** Unknown command received, disconnecting\r\n");
-        SendErrorMessage("Unknown command");
-        LetTcpipBreathe();
-        AbortTcpConnection();
+
+    if(commandCode == OPC_EXECUTE) {
+        pendingCommand.commandCode = commandCode;
+        pendingCommand.remainingBytes = (int)executeCommandPayloadLengths[datum & 3];
+        pendingCommand.dataLength.registers.input = pendingCommand.remainingBytes;
+        pendingCommand.dataLength.registers.output = (byte)executeCommandPayloadLengths[(datum >> 2) & 3];
+        debug4("Received start of EXECUTE, rem bytes=%d, input regs=%d, output regs=%d\r\n", 
+            pendingCommand.remainingBytes, pendingCommand.dataLength.registers.input, pendingCommand.dataLength.registers.output);
+        return PCMD_PARTIAL;
     }
+
+    debug2("Unknown command: 0x%x", datum);
+    print("*** Unknown command received, disconnecting\r\n");
+    SendErrorMessage("Unknown command");
+    LetTcpipBreathe();
+    AbortTcpConnection();
+    return PCMD_NONE;
+}
+
+byte ProcessNextCommandByte(byte datum)
+{
+    *(pendingCommand.bufferWritePointer) = datum;
+    pendingCommand.bufferWritePointer++;
+    pendingCommand.remainingBytes--;
+    return (pendingCommand.remainingBytes==0) ? PCMD_FULL : PCMD_PARTIAL;
+}
+
+byte ProcessNextByteToWrite(byte datum)
+{
+    //TODO: For "write" commands
+    return PCMD_NONE;
+}
+
+void RunExecuteCodeCommand()
+{
+    int codeAddress;
+
+    codeAddress = *((int*)&(pendingCommand.buffer[1]));
+    debug2("Execute: address=0x%x", codeAddress);
+    LoadRegistersBeforeExecutingCode(pendingCommand.dataLength.registers.input-2);
+
+    AsmCall(codeAddress, &regs, REGS_ALL, REGS_ALL);
+
+    SendResponseAfterExecutingCode(pendingCommand.dataLength.registers.output-2);
+}
+
+void LoadRegistersBeforeExecutingCode(byte length)
+{
+    short* regsPointer = (short*)&(pendingCommand.buffer[3]);
+
+    regs.Words.AF = regsPointer[0];
+    debug2("Execute: in AF=0x%x", regs.Words.AF);
+    length -=2;
+    if(length == 0) return;
+
+    regs.Words.BC = regsPointer[1];
+    regs.Words.DE = regsPointer[2];
+    regs.Words.HL = regsPointer[3];
+    debug2("Execute: in BC=0x%x", regs.Words.BC);
+    debug2("Execute: in DE=0x%x", regs.Words.DE);
+    debug2("Execute: in HL=0x%x", regs.Words.HL);
+    length -=6;
+    if(length == 0) return;
+
+    regs.Words.IX = regsPointer[4];
+    regs.Words.IY = regsPointer[5];
+    debug2("Execute: in IX=0x%x", regs.Words.IX);
+    debug2("Execute: in IY=0x%x", regs.Words.IY);
+    length -=4;
+    if(length == 0) return;
+
+    //TODO: Set alternate registers
+}
+
+void SendResponseAfterExecutingCode(byte length)
+{
+    short* regsPointer = (short*)&(pendingCommand.buffer[3]);
+    pendingCommand.buffer[2] = 0; //First byte of "ok" response
+
+    regsPointer[0] = regs.Words.AF;
+    debug2("Execute: out AF=0x%x", regs.Words.AF);
+    if(length > 2) {
+        regsPointer[1] = regs.Words.BC;
+        regsPointer[2] = regs.Words.DE;
+        regsPointer[3] = regs.Words.HL;
+        debug2("Execute: out BC=0x%x", regs.Words.BC);
+        debug2("Execute: out DE=0x%x", regs.Words.DE);
+        debug2("Execute: out HL=0x%x", regs.Words.HL);
+        if(length > 8) {
+            regsPointer[4] = regs.Words.IX;
+            regsPointer[5] = regs.Words.IY;
+            debug2("Execute: out IX=0x%x", regs.Words.IX);
+            debug2("Execute: out IY=0x%x", regs.Words.IY);
+            if(length > 12) {
+                //TODO: Set alternate registers
+            }
+        }
+    }
+
+    SendBytes((byte*)&(pendingCommand.buffer[2]), length+1, true);
 }
 
 void SendErrorMessage(const char* message)
