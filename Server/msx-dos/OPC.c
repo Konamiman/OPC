@@ -140,7 +140,7 @@ struct {
     int userTimeout;
     byte flags;
 } tcpConnectionParameters;
-byte* executeCommandPayloadLengths[4] = { 4, 10, 14, 22 };
+byte executeCommandPayloadLengths[4] = { 4, 10, 14, 22 };
 
 struct {
     //from PendingCommandState
@@ -171,6 +171,12 @@ struct {
 
     byte* bufferWritePointer;
 } pendingCommand;
+
+struct {
+    byte data[512];
+    byte* dataPointer;
+    int remainingData;
+} getDataBuffer;
 
 
     /* Function prototypes */
@@ -377,6 +383,8 @@ void HandleConnectionLifetime()
 
     if(connectionIsEstablished && !wasPreviouslyEstablished) {
         print("Client connected!\r\n");
+        getDataBuffer.dataPointer = &(getDataBuffer.data[0]);
+        getDataBuffer.remainingData = 0;
     }
 
     if(connectionNumber == -1) {
@@ -396,16 +404,26 @@ int GetByteFromConnection()
         return -1;
     }
 
+    if(getDataBuffer.remainingData > 0) {
+        datum = *(getDataBuffer.dataPointer);
+        getDataBuffer.dataPointer++;
+        getDataBuffer.remainingData--;
+        return datum;
+    }
+
     regs.Bytes.B = connectionNumber;
-    regs.Words.DE = (short)&datum;
-    regs.Words.HL = 1;
+    regs.Words.DE = (short)&(getDataBuffer.data[0]);
+    regs.Words.HL = sizeof(getDataBuffer.data);
     UnapiCall(&codeBlock, TCPIP_TCP_RCV, &regs, REGS_MAIN, REGS_MAIN);
 
     if(regs.Bytes.A != 0 || regs.Words.BC == 0) {
         return -1;
     } 
     else {
-        return datum;
+        debug2("Get data: got %u bytes", regs.Words.BC);
+        getDataBuffer.dataPointer = &(getDataBuffer.data[1]); //dummy if got just 1 byte, but doesn't matter
+        getDataBuffer.remainingData = regs.Words.BC - 1;
+        return getDataBuffer.data[0];
     }
 }
 
