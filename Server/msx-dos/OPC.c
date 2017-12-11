@@ -102,6 +102,10 @@ typedef unsigned char bool;
 #define false (0)
 #define true (!false)
 
+#ifndef ushort
+typedef unsigned short ushort;
+#endif
+
 #define print printf
 #define LetTcpipBreathe() UnapiCall(&codeBlock, TCPIP_WAIT, &regs, REGS_NONE, REGS_NONE)
 #define AbortTcpConnection() CloseTcpConnection(true)
@@ -450,6 +454,13 @@ byte ProcessFirstCommandByte(byte datum)
         return PCMD_PARTIAL;
     }
 
+    if(commandCode == OPC_READ_MEM) {
+        pendingCommand.commandCode = commandCode;
+        pendingCommand.remainingBytes = ((datum & 0x0F) == 0 ? 4 : 2);
+        debug3("Received start of READ MEM, rem bytes=%d, %d", pendingCommand.remainingBytes, datum & 0x0F);
+        return PCMD_PARTIAL;
+    }
+
     debug2("Unknown command: 0x%x", datum);
     print("*** Unknown command received, disconnecting\r\n");
     SendErrorMessage("Unknown command");
@@ -474,15 +485,30 @@ byte ProcessNextByteToWrite(byte datum)
 
 void RunExecuteCodeCommand()
 {
-    int codeAddress;
+    int address;
+    uint length;
 
-    codeAddress = *((int*)&(pendingCommand.buffer[1]));
-    debug2("Execute: address=0x%x", codeAddress);
-    LoadRegistersBeforeExecutingCode(pendingCommand.dataLength.registers.input-2);
+    if(pendingCommand.commandCode == OPC_EXECUTE) {
+        address = *((int*)&(pendingCommand.buffer[1]));
+        debug2("Execute: address=0x%x", address);
+        LoadRegistersBeforeExecutingCode(pendingCommand.dataLength.registers.input-2);
 
-    AsmCall(codeAddress, &regs, REGS_ALL, REGS_ALL);
+        AsmCall(address, &regs, REGS_ALL, REGS_ALL);
 
-    SendResponseAfterExecutingCode(pendingCommand.dataLength.registers.output-2);
+        SendResponseAfterExecutingCode(pendingCommand.dataLength.registers.output-2);
+    }
+    else if(pendingCommand.commandCode == OPC_READ_MEM) {
+        address = *((int*)&(pendingCommand.buffer[1]));
+        length = pendingCommand.buffer[0] & 0x0F;
+        if(length == 0) {
+            length = *((uint*)&(pendingCommand.buffer[3]));
+        }
+        debug3("Read mem: address=0x%x, length=%u", address, length);
+        SendByte(0, false);
+        if(length > 0) {
+            SendBytes((byte*)address, length, true);
+        }
+    }
 }
 
 void LoadRegistersBeforeExecutingCode(byte length)
