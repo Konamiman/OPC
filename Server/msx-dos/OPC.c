@@ -150,19 +150,19 @@ struct {
     byte commandCode;
 
     //How many bytes left to have received a completed command?
-    //(for "write" does not include the bytes to be written)
+    //(in state "Writing": how many bytes left to write to mem/port?)
     int remainingBytes;
 
     //For execution, read or write
     int address;
 
     union {
-        int memoryContents; //for "Read" and "Write"
+        byte* writePointer; //for "Write"
         struct {
             byte input;
             byte output;
         } registers; //for "Execute"
-    } dataLength;
+    } stateData;
 
     //Storage for incomplete command.
     //For "Write" commands this does not include the bytes to write.
@@ -190,7 +190,7 @@ int GetByteFromConnection();
 byte ProcessFirstCommandByte(byte datum);
 byte ProcessNextCommandByte(byte datum);
 byte ProcessNextByteToWrite(byte datum);
-void RunExecuteCodeCommand();
+void RunCompletedCommand();
 void LoadRegistersBeforeExecutingCode(byte length);
 void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
@@ -428,7 +428,7 @@ void ProcessReceivedByte(byte datum)
     };
 
     if(pendingCommand.state == PCMD_FULL) {
-        RunExecuteCodeCommand();
+        RunCompletedCommand();
         pendingCommand.state = PCMD_NONE;
     }
 }
@@ -447,17 +447,19 @@ byte ProcessFirstCommandByte(byte datum)
     if(commandCode == OPC_EXECUTE) {
         pendingCommand.commandCode = commandCode;
         pendingCommand.remainingBytes = (int)executeCommandPayloadLengths[datum & 3];
-        pendingCommand.dataLength.registers.input = pendingCommand.remainingBytes;
-        pendingCommand.dataLength.registers.output = (byte)executeCommandPayloadLengths[(datum >> 2) & 3];
+        pendingCommand.stateData.registers.input = pendingCommand.remainingBytes;
+        pendingCommand.stateData.registers.output = (byte)executeCommandPayloadLengths[(datum >> 2) & 3];
         debug4("Received start of EXECUTE, rem bytes=%d, input regs=%d, output regs=%d\r\n", 
-            pendingCommand.remainingBytes, pendingCommand.dataLength.registers.input, pendingCommand.dataLength.registers.output);
+            pendingCommand.remainingBytes, pendingCommand.stateData.registers.input, pendingCommand.stateData.registers.output);
         return PCMD_PARTIAL;
     }
 
-    if(commandCode == OPC_READ_MEM) {
+    if(commandCode == OPC_READ_MEM || commandCode == OPC_WRITE_MEM) {
         pendingCommand.commandCode = commandCode;
         pendingCommand.remainingBytes = ((datum & 0x0F) == 0 ? 4 : 2);
-        debug3("Received start of READ MEM, rem bytes=%d, %d", pendingCommand.remainingBytes, datum & 0x0F);
+        debug3("Received start of %s MEM, rem bytes=%d",
+            commandCode == OPC_READ_MEM ? "READ" : "WRITE",
+            pendingCommand.remainingBytes);
         return PCMD_PARTIAL;
     }
 
@@ -471,19 +473,49 @@ byte ProcessFirstCommandByte(byte datum)
 
 byte ProcessNextCommandByte(byte datum)
 {
+    uint length;
+
     *(pendingCommand.bufferWritePointer) = datum;
     pendingCommand.bufferWritePointer++;
     pendingCommand.remainingBytes--;
-    return (pendingCommand.remainingBytes==0) ? PCMD_FULL : PCMD_PARTIAL;
+
+    if(pendingCommand.remainingBytes != 0)
+        return PCMD_PARTIAL;
+    
+    if(pendingCommand.commandCode != OPC_WRITE_MEM)
+        return PCMD_FULL;
+
+    length = pendingCommand.buffer[0] & 0x0F;
+    if(length == 0) {
+        length = *((uint*)&(pendingCommand.buffer[3]));
+    }
+    if(length == 0) {
+        return PCMD_NONE;
+    }
+
+    pendingCommand.remainingBytes = length;
+    pendingCommand.stateData.writePointer = *(byte**)&(pendingCommand.buffer[1]);
+    debug3("Write mem: address=0x%x, length=%u", pendingCommand.stateData.writePointer, pendingCommand.remainingBytes);
+    return PCMD_WRITING;
 }
 
 byte ProcessNextByteToWrite(byte datum)
 {
-    //TODO: For "write" commands
-    return PCMD_NONE;
+    *(pendingCommand.stateData.writePointer) = datum;
+    pendingCommand.stateData.writePointer++;
+    pendingCommand.remainingBytes--;
+
+    if(pendingCommand.remainingBytes == 0) {
+        debug("Write mem: completed");
+        SendByte(0, true);
+        return PCMD_NONE;
+    }
+    else {
+        return PCMD_WRITING;
+    }
 }
 
-void RunExecuteCodeCommand()
+void RunCompletedCommand()
 {
     int address;
     uint length;
@@ -491,11 +523,11 @@ void RunExecuteCodeCommand()
     if(pendingCommand.commandCode == OPC_EXECUTE) {
         address = *((int*)&(pendingCommand.buffer[1]));
         debug2("Execute: address=0x%x", address);
-        LoadRegistersBeforeExecutingCode(pendingCommand.dataLength.registers.input-2);
+        LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
         AsmCall(address, &regs, REGS_ALL, REGS_ALL);
 
-        SendResponseAfterExecutingCode(pendingCommand.dataLength.registers.output-2);
+        SendResponseAfterExecutingCode(pendingCommand.stateData.registers.output-2);
     }
     else if(pendingCommand.commandCode == OPC_READ_MEM) {
         address = *((int*)&(pendingCommand.buffer[1]));
