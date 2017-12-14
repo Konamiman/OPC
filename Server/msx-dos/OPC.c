@@ -202,7 +202,7 @@ void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
 void SendErrorMessage(const char* message);
 void SendByte(byte datum, bool push);
-void SendBytes(byte* data, int length, bool push);
+void SendBytes(byte* data, uint length, bool push);
 
 
 /**********************
@@ -629,18 +629,29 @@ void SendByte(byte datum, bool push)
     SendBytes(&datum, 1, push);
 }
 
-void SendBytes(byte* data, int length, bool push)
+#define SEND_CHUNK_SIZE 512
+void SendBytes(byte* data, uint length, bool push)
 {
+    uint remaining = length;
+    uint sendSize;
+
     if(connectionNumber == -1) return;
 
-    regs.Bytes.B = connectionNumber;
-    regs.Words.DE = (short)data;
-    regs.Words.HL = (short)length;
-    regs.Bytes.C = push ? 1 : 0;
+    while(remaining > 0) {
+        sendSize = remaining > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : remaining;
 
-    while(true) {
-        UnapiCall(&codeBlock, TCPIP_TCP_SEND, &regs, REGS_MAIN, REGS_AF);
-        if(regs.Bytes.A != ERR_BUFFER) break;
-        LetTcpipBreathe();
+        regs.Bytes.B = connectionNumber;
+        regs.Words.DE = (short)data;
+        regs.Words.HL = (short)sendSize;
+        regs.Bytes.C = push ? 1 : 0;
+
+        while(true) {
+            UnapiCall(&codeBlock, TCPIP_TCP_SEND, &regs, REGS_MAIN, REGS_AF);
+            if(regs.Bytes.A == 0) break;
+            if(regs.Bytes.A != ERR_BUFFER) return;
+            LetTcpipBreathe();
+        }
+
+        remaining -= sendSize;
     }
 }
