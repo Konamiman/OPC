@@ -618,9 +618,13 @@ void RunCompletedCommand()
         address = *((int*)&(pendingCommand.buffer[1]));
 
         if(address >= 0x100 && address <= SERVER_MAX_ADDRESS) {
-            debug2("Execute: address=0x%x, ERROR!", address);
+            debug2("Execute: address=0x%x, ERROR! Server code", address);
             sprintf(errorMessageBuffer, "Can't execute at 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
             SendErrorMessage(errorMessageBuffer);            
+        }
+        else if(pendingCommand.stateData.registers.input == 22 || pendingCommand.stateData.registers.output == 22) {
+            debug2("Execute: address=0x%x, ERROR! Using alternate regs", address);
+            SendErrorMessage("Setting alternate input/output registers is not supported by this server");
         }
         else {
             debug2("Execute: address=0x%x", address);
@@ -696,6 +700,11 @@ void LoadRegistersBeforeExecutingCode(byte length)
     debug2("Execute: in IY=0x%x", regs.Words.IY);
     length -=4;
     if(length == 0) return;
+
+    debug2("Execute: in AF'=0x%x", regsPointer[6]);
+    debug2("Execute: in BC'=0x%x", regsPointer[7]);
+    debug2("Execute: in DE'=0x%x", regsPointer[8]);
+    debug2("Execute: in HL'=0x%x", regsPointer[9]);
 
     //TODO: Set alternate registers
 }
