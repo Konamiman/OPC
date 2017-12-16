@@ -93,7 +93,13 @@ const byte TCP_ESTABLISHED = 4;
     /* MSX-DOS functions */
 
 #define _TERM0 0
+#define _DIRIO 0x06
 #define _TERM 0x62
+#define _DEFAB 0x63
+#define _DEFER 0x64
+
+#define _CTRLC 0x9E
+#define _STOP 0x9F
 
 
     /* Some handy defines */
@@ -218,6 +224,12 @@ void SendByte(byte datum, bool push);
 void SendBytes(byte* data, uint length, bool push);
 void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
 void WriteToPort(byte portNumber, byte value);
+void SetAutoAbortOnDiskError();
+void DisableProgramTerminationOnDiskErrorAbort();
+void RestoreDefaultDiskErrorRoutine();
+void RestoreDefaultAbortRoutine();
+void TerminateWithCtrlCOrCtrlStop();
+void CheckKeyPressAvailable();
 
 
 /**********************
@@ -238,6 +250,9 @@ int main(char** argv, int argc)
 
     ParseParameters();
     InitializeTcpipUnapi();
+    
+    SetAutoAbortOnDiskError();
+    DisableProgramTerminationOnDiskErrorAbort();
 
     OpenPassiveTcpConnection();
     print("--- Press ESC at any time to exit\r\n\r\n");
@@ -245,6 +260,10 @@ int main(char** argv, int argc)
 
     while(!EscIsPressed())
     {
+        /*We need this to give MSX-DOS a chance of detecting
+          if CTRL-STOP has been pressed*/
+        CheckKeyPressAvailable();
+
         LetTcpipBreathe();
         HandleConnectionLifetime();
 
@@ -300,6 +319,8 @@ void Terminate(const char* errorMessage)
 void TerminateWithErrorCode(byte errorCode)
 {
     AbortTcpConnection();
+    RestoreDefaultAbortRoutine();
+    RestoreDefaultDiskErrorRoutine();
 
     regs.Bytes.B = errorCode;
     DosCall(_TERM, &regs, REGS_MAIN, REGS_NONE);
@@ -793,5 +814,114 @@ void WriteToPort(byte portNumber, byte value)
     pop     ix
     ret
 
+    __endasm;
+}
+
+
+/*
+Prevent a "Disk error - Abort, Retry, Ignore?" prompt
+to be thrown at the console if a disk access related
+MSX-DOS function call is invoked and fails;
+instead, the operation is simply auto-aborted
+(and DisableProgramTerminationOnDiskErrorAbort prevents
+that from terminating the program).
+
+Unfortunately this does not work on MSX-DOS 1.
+*/
+
+void SetAutoAbortOnDiskError() __naked
+{
+    __asm
+    
+    push    ix
+    ld  de,#DISKERR_CODE
+    ld  c,#_DEFER
+    call    #5
+    pop ix
+    ret
+
+DISKERR_CODE:
+    ld a,#1
+    ret
+
+    __endasm;
+}
+
+void RestoreDefaultDiskErrorRoutine()
+{
+    regs.Words.DE = 0;
+    DosCall(_DEFER, &regs, REGS_MAIN, REGS_NONE);
+}
+
+
+/*
+Prevent the program from terminating abruptely
+after a disk error has been auto-aborted,
+or when the user presses Ctrl-C or Ctrl-STOP.
+
+In case of disk error, the program simply continues.
+In case of Ctrl-C or Ctrl-STOP being pressed,
+the program terminates gracefully.
+
+Unfortunately this does not work on MSX-DOS 1.
+*/
+
+void DisableProgramTerminationOnDiskErrorAbort() __naked
+{
+    __asm
+    
+    push    ix
+    ld  de,#ABORT_CODE
+    ld  c,#_DEFAB
+    call    #5
+    pop ix
+    ret
+
+    ;Input:  A = Primary error code
+    ;        B = Secondary error code, 0 if none
+    ;Output: A = Actual error code to use
+ABORT_CODE:
+    cp  #_CTRLC
+    jp  z,_TerminateWithCtrlCOrCtrlStop
+    cp  #_STOP
+    jp  z,_TerminateWithCtrlCOrCtrlStop
+
+    pop hl  ;This causes the program to continue instead of terminating
+    
+    ld  c,a ;Return the secondary error code if present,
+    ld  a,b ;instead of the generic "Operation aborted" error
+    or  a
+    ret nz
+    ld  a,c
+    ret
+
+    __endasm;
+}
+
+void RestoreDefaultAbortRoutine()
+{
+    regs.Words.DE = 0;
+    DosCall(_DEFAB, &regs, REGS_MAIN, REGS_NONE);
+}
+
+void TerminateWithCtrlCOrCtrlStop()
+{
+    Terminate("Server manually terminated");
+}
+
+/*
+Implemented in ASM for performance
+(this is called continuosly in a loop)
+*/
+
+void CheckKeyPressAvailable() __naked
+{
+    __asm
+    push ix
+    ld c,#_DIRIO
+    ld e,#0xFF
+    call #5
+    pop ix
+    ret
     __endasm;
 }
