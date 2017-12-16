@@ -160,6 +160,10 @@ struct {
     union {
         byte* writePointer; //for "Write"
         struct {
+            byte port;
+            bool increment;
+        } portWrite;
+        struct {
             byte input;
             byte output;
         } registers; //for "Execute"
@@ -208,6 +212,7 @@ void SendErrorMessage(const char* message);
 void SendByte(byte datum, bool push);
 void SendBytes(byte* data, uint length, bool push);
 void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
+void WriteToPort(byte portNumber, byte value);
 
 
 /**********************
@@ -486,7 +491,7 @@ byte ProcessFirstCommandByte(byte datum)
         return PCMD_PARTIAL;
     }
 
-    if(commandCode == OPC_READ_PORT) {
+    if(commandCode == OPC_READ_PORT || commandCode == OPC_WRITE_PORT) {
         pendingCommand.commandCode = commandCode;
         pendingCommand.remainingBytes = ((datum & 0x07) == 0 ? 3 : 1);
         debug3("Received start of %s PORT, rem bytes=%d",
@@ -513,32 +518,49 @@ byte ProcessNextCommandByte(byte datum)
 
     if(pendingCommand.remainingBytes != 0)
         return PCMD_PARTIAL;
-    
-    if(pendingCommand.commandCode != OPC_WRITE_MEM)
+
+    if(pendingCommand.commandCode != OPC_WRITE_MEM && pendingCommand.commandCode != OPC_WRITE_PORT)
         return PCMD_FULL;
 
-    length = pendingCommand.buffer[0] & 0x0F;
+    length = pendingCommand.buffer[0] & (pendingCommand.commandCode == OPC_WRITE_MEM ? 0x0F : 0x07);
     if(length == 0) {
-        length = *((uint*)&(pendingCommand.buffer[3]));
+        length = *((uint*)&(pendingCommand.buffer[pendingCommand.commandCode == OPC_WRITE_MEM ? 3 : 2]));
     }
     if(length == 0) {
         return PCMD_NONE;
     }
 
     pendingCommand.remainingBytes = length;
-    pendingCommand.stateData.writePointer = *(byte**)&(pendingCommand.buffer[1]);
-    debug3("Write mem: address=0x%x, length=%u", pendingCommand.stateData.writePointer, pendingCommand.remainingBytes);
+    if(pendingCommand.commandCode == OPC_WRITE_MEM) {
+        pendingCommand.stateData.writePointer = *(byte**)&(pendingCommand.buffer[1]);
+        debug3("Write mem: address=0x%x, length=%u", pendingCommand.stateData.writePointer, pendingCommand.remainingBytes);
+    }
+    else {
+        pendingCommand.stateData.portWrite.port = *(byte*)&(pendingCommand.buffer[1]);
+        pendingCommand.stateData.portWrite.increment = (bool)((pendingCommand.buffer[0] & (1<<3)) != 0);
+        debug4("Write port: port=%u, length=%u, incr=%u", 
+            pendingCommand.stateData.portWrite.port, pendingCommand.remainingBytes,
+            pendingCommand.stateData.portWrite.increment);
+    }
     return PCMD_WRITING;
 }
 
 byte ProcessNextByteToWrite(byte datum)
 {
-    *(pendingCommand.stateData.writePointer) = datum;
-    pendingCommand.stateData.writePointer++;
+    if(pendingCommand.commandCode == OPC_WRITE_MEM) {
+        *(pendingCommand.stateData.writePointer) = datum;
+        pendingCommand.stateData.writePointer++;
+    }
+    else {
+        WriteToPort(pendingCommand.stateData.portWrite.port, datum);
+        if(pendingCommand.stateData.portWrite.increment) {
+            pendingCommand.stateData.portWrite.port++;
+        }
+    }
     pendingCommand.remainingBytes--;
 
     if(pendingCommand.remainingBytes == 0) {
-        debug("Write mem: completed");
+        debug2("Write %s: completed", pendingCommand.commandCode == OPC_WRITE_MEM ? "mem" : "port");
         SendByte(0, true);
         return PCMD_NONE;
     }
@@ -727,6 +749,22 @@ RFP_INCC:
     jr nz,RFP_LOOP
 
     pop ix
+    ret
+
+    __endasm;
+}
+
+void WriteToPort(byte portNumber, byte value)
+{
+    __asm
+
+    push    ix
+    ld      ix,#4
+    add     ix,sp
+    ld      c,(ix)  ;C=port number
+    ld      a,1(ix) ;A=value
+    out     (c),a
+    pop     ix
     ret
 
     __endasm;
