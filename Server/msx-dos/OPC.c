@@ -110,6 +110,7 @@ typedef unsigned short ushort;
 #define LetTcpipBreathe() UnapiCall(&codeBlock, TCPIP_WAIT, &regs, REGS_NONE, REGS_NONE)
 #define AbortTcpConnection() CloseTcpConnection(true)
 
+#define SEND_CHUNK_SIZE 512
 
     /* Strings */
 
@@ -178,6 +179,8 @@ struct {
     int remainingData;
 } getDataBuffer;
 
+byte readPortBuffer[SEND_CHUNK_SIZE];
+
 
     /* Function prototypes */
 
@@ -197,12 +200,14 @@ byte ProcessFirstCommandByte(byte datum);
 byte ProcessNextCommandByte(byte datum);
 byte ProcessNextByteToWrite(byte datum);
 void RunCompletedCommand();
+void SendPortBytes(byte port, uint length, bool increment);
 void LoadRegistersBeforeExecutingCode(byte length);
 void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
 void SendErrorMessage(const char* message);
 void SendByte(byte datum, bool push);
 void SendBytes(byte* data, uint length, bool push);
+void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
 
 
 /**********************
@@ -481,6 +486,15 @@ byte ProcessFirstCommandByte(byte datum)
         return PCMD_PARTIAL;
     }
 
+    if(commandCode == OPC_READ_PORT) {
+        pendingCommand.commandCode = commandCode;
+        pendingCommand.remainingBytes = ((datum & 0x07) == 0 ? 3 : 1);
+        debug3("Received start of %s PORT, rem bytes=%d",
+            commandCode == OPC_READ_PORT ? "READ" : "WRITE",
+            pendingCommand.remainingBytes);
+        return PCMD_PARTIAL;
+    }
+
     debug2("Unknown command: 0x%x", datum);
     print("*** Unknown command received, disconnecting\r\n");
     SendErrorMessage("Unknown command");
@@ -536,6 +550,7 @@ byte ProcessNextByteToWrite(byte datum)
 void RunCompletedCommand()
 {
     int address;
+    byte port;
     uint length;
 
     if(pendingCommand.commandCode == OPC_EXECUTE) {
@@ -558,6 +573,33 @@ void RunCompletedCommand()
         if(length > 0) {
             SendBytes((byte*)address, length, true);
         }
+    }
+    else if(pendingCommand.commandCode == OPC_READ_PORT) {
+        port = *((byte*)&(pendingCommand.buffer[1]));
+        length = pendingCommand.buffer[0] & 0x07;
+        if(length == 0) {
+            length = *((uint*)&(pendingCommand.buffer[2]));
+        }
+        debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, (pendingCommand.buffer[0] & (1 << 3)) != 0);
+        SendByte(0, false);
+        if(length > 0) {
+            SendPortBytes(port, length, (pendingCommand.buffer[0] & (1 << 3)) != 0);
+        }
+    }
+}
+
+void SendPortBytes(byte port, uint length, bool increment)
+{
+    uint remaining = length;
+    uint sendSize;
+
+    if(connectionNumber == -1) return;
+
+    while(remaining > 0) {
+        sendSize = remaining > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : remaining;
+        ReadFromPort(port, readPortBuffer, sendSize, increment);
+        SendBytes(readPortBuffer, sendSize, true);
+        remaining -= sendSize;
     }
 }
 
@@ -629,7 +671,6 @@ void SendByte(byte datum, bool push)
     SendBytes(&datum, 1, push);
 }
 
-#define SEND_CHUNK_SIZE 512
 void SendBytes(byte* data, uint length, bool push)
 {
     uint remaining = length;
@@ -654,4 +695,39 @@ void SendBytes(byte* data, uint length, bool push)
 
         remaining -= sendSize;
     }
+}
+
+void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement) __naked
+{
+    __asm
+
+    push    ix
+    ld      ix,#4
+    add     ix,sp
+    ld      c,(ix)  ;C=(first) port number
+    ld      l,1(ix)
+    ld      h,2(ix) ;HL=dest address
+    ld      e,3(ix)
+    ld      d,4(ix) ;DE=size
+    ld      a,5(ix) ;A=autoIncrement
+    or      a,a
+    jr      z,RFP_DO
+    ld      a,#0x0C ;INC C
+RFP_DO:
+    ld      (RFP_INCC),a
+
+RFP_LOOP:
+    ld  a,(hl)
+    ini
+RFP_INCC:
+    nop ;INC C on autoincrement, NOP otherwise
+    dec de
+    ld a,d
+    or e
+    jr nz,RFP_LOOP
+
+    pop ix
+    ret
+
+    __endasm;
 }
