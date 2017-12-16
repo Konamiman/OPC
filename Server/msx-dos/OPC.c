@@ -111,6 +111,7 @@ typedef unsigned short ushort;
 #define AbortTcpConnection() CloseTcpConnection(true)
 
 #define SEND_CHUNK_SIZE 512
+#define SERVER_MAX_ADDRESS 0x2500
 
     /* Strings */
 
@@ -158,7 +159,10 @@ struct {
     int address;
 
     union {
-        byte* writePointer; //for "Write"
+        struct {
+            byte* pointer;
+            bool isErrored;
+        } memWrite;
         struct {
             byte port;
             bool increment;
@@ -184,6 +188,7 @@ struct {
 } getDataBuffer;
 
 byte readPortBuffer[SEND_CHUNK_SIZE];
+#define errorMessageBuffer readPortBuffer
 
 
     /* Function prototypes */
@@ -511,6 +516,7 @@ byte ProcessFirstCommandByte(byte datum)
 byte ProcessNextCommandByte(byte datum)
 {
     uint length;
+    byte* address;
 
     *(pendingCommand.bufferWritePointer) = datum;
     pendingCommand.bufferWritePointer++;
@@ -532,8 +538,12 @@ byte ProcessNextCommandByte(byte datum)
 
     pendingCommand.remainingBytes = length;
     if(pendingCommand.commandCode == OPC_WRITE_MEM) {
-        pendingCommand.stateData.writePointer = *(byte**)&(pendingCommand.buffer[1]);
-        debug3("Write mem: address=0x%x, length=%u", pendingCommand.stateData.writePointer, pendingCommand.remainingBytes);
+        address = *(byte**)&(pendingCommand.buffer[1]);
+        pendingCommand.stateData.memWrite.pointer = address;
+        pendingCommand.stateData.memWrite.isErrored = ((uint)address >= 0x100 && (uint)address <= SERVER_MAX_ADDRESS);
+        debug4("Write mem: address=0x%x, length=%u, errored: %u",
+            pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
+            pendingCommand.stateData.memWrite.isErrored);
     }
     else {
         pendingCommand.stateData.portWrite.port = *(byte*)&(pendingCommand.buffer[1]);
@@ -548,8 +558,10 @@ byte ProcessNextCommandByte(byte datum)
 byte ProcessNextByteToWrite(byte datum)
 {
     if(pendingCommand.commandCode == OPC_WRITE_MEM) {
-        *(pendingCommand.stateData.writePointer) = datum;
-        pendingCommand.stateData.writePointer++;
+        if(!pendingCommand.stateData.memWrite.isErrored) {
+            *(pendingCommand.stateData.memWrite.pointer) = datum;
+        }
+        pendingCommand.stateData.memWrite.pointer++;
     }
     else {
         WriteToPort(pendingCommand.stateData.portWrite.port, datum);
@@ -561,7 +573,13 @@ byte ProcessNextByteToWrite(byte datum)
 
     if(pendingCommand.remainingBytes == 0) {
         debug2("Write %s: completed", pendingCommand.commandCode == OPC_WRITE_MEM ? "mem" : "port");
-        SendByte(0, true);
+        if(pendingCommand.stateData.memWrite.isErrored) {
+            sprintf(errorMessageBuffer, "Can't write to 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
+            SendErrorMessage(errorMessageBuffer);
+        }
+        else {
+            SendByte(0, true);
+        }
         return PCMD_NONE;
     }
     else {
@@ -577,12 +595,20 @@ void RunCompletedCommand()
 
     if(pendingCommand.commandCode == OPC_EXECUTE) {
         address = *((int*)&(pendingCommand.buffer[1]));
-        debug2("Execute: address=0x%x", address);
-        LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
-        AsmCall(address, &regs, REGS_ALL, REGS_ALL);
+        if(address >= 0x100 && address <= SERVER_MAX_ADDRESS) {
+            debug2("Execute: address=0x%x, ERROR!", address);
+            sprintf(errorMessageBuffer, "Can't execute at 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
+            SendErrorMessage(errorMessageBuffer);            
+        }
+        else {
+            debug2("Execute: address=0x%x", address);
+            LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
-        SendResponseAfterExecutingCode(pendingCommand.stateData.registers.output-2);
+            AsmCall(address, &regs, REGS_ALL, REGS_ALL);
+
+            SendResponseAfterExecutingCode(pendingCommand.stateData.registers.output-2);
+        }
     }
     else if(pendingCommand.commandCode == OPC_READ_MEM) {
         address = *((int*)&(pendingCommand.buffer[1]));
