@@ -17,7 +17,7 @@
    Comments are welcome: konamiman@konamiman.com
 */
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define debug(x) {print("--- ");print(x);print("\r\n");}
@@ -115,6 +115,7 @@ typedef unsigned short ushort;
 #define print printf
 #define LetTcpipBreathe() UnapiCall(&codeBlock, TCPIP_WAIT, &regs, REGS_NONE, REGS_NONE)
 #define AbortTcpConnection() CloseTcpConnection(true)
+#define ToLowerCase(c) ((c) | 32)
 
 #define SEND_CHUNK_SIZE 512
 #define SERVER_MAX_ADDRESS 0x2500
@@ -127,7 +128,8 @@ const char* strTitle=
     "\r\n";
     
 const char* strUsage=
-    "Usage: opcs <local port>\r\n";
+    "Usage: opcs <local port> [v]\r\n"
+    "       v = verbose mode\r\n";
     
 const char* strInvParam = "Invalid parameter";
 
@@ -141,6 +143,7 @@ unapi_code_block codeBlock;
 int port;
 bool connectionIsEstablished = false;
 int connectionNumber = -1;
+bool verbose = false;
 struct {
     byte remoteIP[4];
     uint remotePort;
@@ -305,6 +308,13 @@ void ParseParameters()
     port = atoi(arguments[0]);
     if(port == 0)
         Terminate("Invalid parameters");
+    
+    if(argumentsCount >= 2) {
+        if(ToLowerCase(arguments[1][0]) != 'v')
+            Terminate("Invalid parameters");
+
+        verbose = true;
+    }
 }
 
 void Terminate(const char* errorMessage)
@@ -493,6 +503,7 @@ byte ProcessFirstCommandByte(byte datum)
 
     if(commandCode == OPC_PING) {
         debug("Received PING\r\n");
+        if(verbose) print("- Received PING command\r\n");
         SendByte(0, false);
         SendByte(datum, true);
         return PCMD_NONE;
@@ -565,6 +576,9 @@ byte ProcessNextCommandByte(byte datum)
         debug4("Write mem: address=0x%x, length=%u, errored: %u",
             pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
             pendingCommand.stateData.memWrite.isErrored);
+        if(verbose) 
+            printf("- Received WRITE MEMORY command for address 0x%x, length=%u\r\n", 
+            pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes);
     }
     else {
         pendingCommand.stateData.portWrite.port = *(byte*)&(pendingCommand.buffer[1]);
@@ -572,6 +586,10 @@ byte ProcessNextCommandByte(byte datum)
         debug4("Write port: port=%u, length=%u, incr=%u", 
             pendingCommand.stateData.portWrite.port, pendingCommand.remainingBytes,
             pendingCommand.stateData.portWrite.increment);
+        if(verbose) 
+            printf("- Received WRITE PORT command for port %u, length=%u, autoincrement=%s\r\n", 
+            pendingCommand.stateData.portWrite.port, pendingCommand.remainingBytes,
+            pendingCommand.stateData.portWrite.increment ? "yes" : "no");
     }
     return PCMD_WRITING;
 }
@@ -613,21 +631,25 @@ void RunCompletedCommand()
     int address;
     byte port;
     uint length;
+    bool incrementPort;
 
     if(pendingCommand.commandCode == OPC_EXECUTE) {
         address = *((int*)&(pendingCommand.buffer[1]));
 
         if(address >= 0x100 && address <= SERVER_MAX_ADDRESS) {
             debug2("Execute: address=0x%x, ERROR! Server code", address);
+            if(verbose) printf("- Received EXECUTE command for address 0x%x, error: bad address\r\n", address);
             sprintf(errorMessageBuffer, "Can't execute at 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
             SendErrorMessage(errorMessageBuffer);            
         }
         else if(pendingCommand.stateData.registers.input == 22 || pendingCommand.stateData.registers.output == 22) {
             debug2("Execute: address=0x%x, ERROR! Using alternate regs", address);
+            if(verbose) printf("- Received EXECUTE command for address 0x%x, error: alt regs not supported\r\n", address);
             SendErrorMessage("Setting alternate input/output registers is not supported by this server");
         }
         else {
             debug2("Execute: address=0x%x", address);
+            if(verbose) printf("- Received EXECUTE command for address 0x%x\r\n", address);
             LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
             AsmCall(address, &regs, REGS_ALL, REGS_ALL);
@@ -642,6 +664,8 @@ void RunCompletedCommand()
             length = *((uint*)&(pendingCommand.buffer[3]));
         }
         debug3("Read mem: address=0x%x, length=%u", address, length);
+        if(verbose) 
+            printf("- Received READ MEMORY command for address 0x%x, length=%u\r\n", address, length);
         SendByte(0, false);
         if(length > 0) {
             SendBytes((byte*)address, length, true);
@@ -649,14 +673,18 @@ void RunCompletedCommand()
     }
     else if(pendingCommand.commandCode == OPC_READ_PORT) {
         port = *((byte*)&(pendingCommand.buffer[1]));
+        incrementPort = (pendingCommand.buffer[0] & (1 << 3)) != 0;
         length = pendingCommand.buffer[0] & 0x07;
         if(length == 0) {
             length = *((uint*)&(pendingCommand.buffer[2]));
         }
-        debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, (pendingCommand.buffer[0] & (1 << 3)) != 0);
+        debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, incrementPort);
+        if(verbose) 
+            printf("- Received READ PORT command for port %u, length=%u, autoincrement=%s\r\n",
+            port, length, incrementPort ? "yes" : "no");
         SendByte(0, false);
         if(length > 0) {
-            SendPortBytes(port, length, (pendingCommand.buffer[0] & (1 << 3)) != 0);
+            SendPortBytes(port, length, incrementPort);
         }
     }
 }
