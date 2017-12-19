@@ -2,7 +2,8 @@
 
 Obsolete Procedure Call (OPC) is a protocol intended for performing remote access to a machine that is controlled (or simulates being controlled) by a Z80 processor.
 
-**[Here is the protocol specification](OPC.md)**. Coming "soon":
+**[Protocol specification](OPC.md)**
 
-* A server program for MSX.
-* A .NET client library.
+**[Server for MSX-DOS](Server/msx-dos/OPC.c)** - see also [the directory with build scripts for Windows](Server/msx-dos/build-win)
+
+Coming "soon": A .NET client library.
