@@ -1,6 +1,6 @@
 # Obsolete Procedure Call 1.0 
 
-By Konamiman, 12/2017
+By Konamiman, 1/2018
 
 ## Introduction 
 
@@ -159,7 +159,7 @@ The client wants to execute the code that starts at address 1234h with the follo
 The client begins by sending the following: 
 
     +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ 
-    | 19 | | 34 | | 12 | | 00 | | 56 | | 00 | | 00 | | 9A | | 78 | | BC | | 00  
+    | 19 | | 34 | | 12 | | 00 | | 56 | | 00 | | 00 | | 9A | | 78 | | BC | | 00 |
     +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ 
         |   Code address    F      A      C      B      E      D      L      H  
         |    
@@ -186,13 +186,15 @@ The server sets the Z80 registers with the supplied values and executes the code
 
 **Command parameter:** One of:
 
-* 1 to 15: The number of bytes to read. 
-* Zero: Indicates that the number of bytes to read will be specified as part of the command data. 
+* Bits 0-2: one of:
+  * 1 to 7: The number of bytes to read.
+  * Zero: Indicates that the number of bytes to read will be specified as part of the command data.
+* Bit 3: Address lock flag. If set, all the data will be read from the same memory address.
 
 **Command data:**
 
-* Two bytes with the first memory address that will be read, followed by... 
-* Two bytes with the number of bytes to read, **only if the command parameter is zero**.
+* Two bytes with the first (or only) memory address that will be read, followed by... 
+* Two bytes with the number of bytes to read, **only if bits 0-2 of the command parameter are zero**.
 
 **Response data:**
 
@@ -200,9 +202,11 @@ The bytes read from the server's Z80 memory. The length of the response data is 
 
 ### Remarks 
 
-This command reads a block of data from the server's Z80 memory address space, starting at a certain address. The server should just read the visible memory and output it to the communication channel, without performing any further processing. 
+This command reads a block of data from the server's Z80 memory address space, starting at a certain address. The server should just read the visible memory and output it to the communication channel, without performing any further processing.
 
-If the size of the block to be read is 15 bytes or less, the size can be specified either in the command parameter or in the command data. For 16 bytes to be read or more, the size must be specified in the command data. 
+If the address lock flag is set, all the data will be read from the same address. This is intended for usage with hardware that implements memory mapped ports (e.g. mass storage or network controllers), of course it doesn't make much sense for regular ROM/RAM memory.
+
+If the size of the block to be read is 7 bytes or less, the size can be specified either in the command parameter or in the command data. For 8 bytes to be read or more, the size must be specified in the command data. 
 
 The client should not specify a block size of zero, but the server should be prepared to receive such a command and in that case it should do nothing and just return an empty response (with just the single zero byte indicating success). 
 
@@ -217,7 +221,8 @@ _Option 1:_
     +----+ +----+ +----+ 
         |   Data address    
         |    
-    Block length 
+    Bits 0-2: Block length 
+    Bit 3 not set (don't lock address) 
 
 _Option 2:_
 
@@ -225,6 +230,8 @@ _Option 2:_
     | 20 | | 34 | | 12 | | 05 | | 00 | 
     +----+ +----+ +----+ +----+ +----+ 
             Data address  Block length 
+
+(If the client wanted to read all five bytes from address 1234h instead, the first command byte would be 2Dh in option 1 and 28h in option 2)
 
 The server reads its own memory starting at the specified address, whose contents is: 11h, 22h, 33h, 44h, 55h. It then sends the following response: 
 
@@ -239,13 +246,15 @@ The server reads its own memory starting at the specified address, whose content
 
 **Command parameter:** One of:
 
-* 1 to 15: The number of bytes to be written. 
-* Zero: Indicates that the number of bytes to be written will be specified as part of the command data. 
+* Bits 0-2: one of:
+  * 1 to 7: The number of bytes to write.
+  * Zero: Indicates that the number of bytes to write will be specified as part of the command data.
+* Bit 3: Address lock flag. If set, all the data will be written to the same memory address.
 
 **Command data:**
 
-* Two bytes with the first memory address that will be written, followed by... 
-* Two bytes with the number of bytes to be written, **only if the command parameter is zero**; followed by... 
+* Two bytes with the first (or only) memory address that will be written, followed by... 
+* Two bytes with the number of bytes to be written, **only if bits 0-2 of the command parameter is zero**; followed by... 
 * The bytes to be written. 
 
 **Response data:**
@@ -256,11 +265,13 @@ None.
 
 This command writes a block of data to the server's Z80 memory address space, starting at a certain address. The server should just write the supplied bytes to the visible memory, without performing any further processing. 
 
+If the address lock flag is set, all the data will be written to the same address. This is intended for usage with hardware that implements memory mapped ports (e.g. mass storage or network controllers), of course it doesn't make much sense for regular RAM memory.
+
 The server may refuse to write to the specified address, if it knows beforehand that it is part of a sensible memory area (such as a system work area) and performing the write would crash the system or corrupt data. In that case, an error message must be returned and no memory must be written at all; partial writes are not supported. 
 
-It may be the case that the specified memory address is part of a ROM area or equivalent, and writing to it has no actual effect. In that case the server must anyway perform the write operation and NOT return an error. Put it another way, the server's only obligation upon receiving this command is to try to write the specified data starting at the specified address; whether the memory contents actually change or not is not the server's concern, it is the client's responsibility to check back the memory contents (by using a "Read from memory" command) if it desires to do so. 
+It may be the case that the specified memory address is part of a ROM area or equivalent, and writing to it has no actual effect. In that case the server must anyway perform the write operation and NOT return an error. Put it another way, the server's only obligation upon receiving this command is to _try_ to write the specified data starting at the specified address; whether the memory contents actually change or not is not the server's concern, it is the client's responsibility to check back the memory contents (by using a "Read from memory" command) if it desires to do so. 
 
-If the size of the block to be written is 15 bytes or less, the size can be specified either in the command parameter or in the command data. For 16 bytes to be written or more, the size must be specified in the command data. 
+If the size of the block to be written is 7 bytes or less, the size can be specified either in the command parameter or in the command data. For 8 bytes to be written or more, the size must be specified in the command data. 
 
 The client should not specify a block size of zero, but the server should be prepared to receive such a command and in that case it should do nothing and just return an empty response (with just the single zero byte indicating success). 
 
@@ -275,7 +286,8 @@ _Option 1:_
     +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ 
         |   Data address     Data to be written 
         |    
-    Block length 
+    Bits 0-2: Block length 
+    Bit 3 not set (don't lock address) 
 
 _Option 2:_
 
@@ -283,6 +295,9 @@ _Option 2:_
     | 30 | | 34 | | 12 | | 05 | | 00 | | 11 | | 22 | | 33 | | 44 | | 55 | 
     +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ +----+ 
             Data address  Block length     Data to be written 
+
+
+(If the client wanted to write all five bytes to address 1234h instead, the first command byte would be 3Dh in option 1 and 38h in option 2)
 
 The server then writes the specified bytes to its own memory starting at the specified address, and returns: 
 
@@ -377,7 +392,7 @@ This command writes a block of data to the server's Z80 ports space. If bit 3 of
 
 The server may refuse to write to the specified port(s), if it knows beforehand that performing the write would crash the system or corrupt data. In that case, an error message must be returned and no ports must be written at all; partial writes are not supported. 
 
-It may be the case that the specified port(s) is/are not connected to any hardware or an equivalent situation, and writing to them has no actual effect. In that case the server must anyway perform the write operation and NOT return an error. Put it another way, the server's only obligation upon receiving this command is to try to write the specified data at the specified port(s); whether the write operation has actually any effect or not is not the server's concern, it is the client's responsibility to check back the ports (perhaps by using a "Read from ports" command) if it desires to do so. 
+It may be the case that the specified port(s) is/are not connected to any hardware or an equivalent situation, and writing to them has no actual effect. In that case the server must anyway perform the write operation and NOT return an error. Put it another way, the server's only obligation upon receiving this command is to _try_ to write the specified data at the specified port(s); whether the write operation has actually any effect or not is not the server's concern, it is the client's responsibility to check back the ports (perhaps by using a "Read from ports" command) if it desires to do so. 
 
 If the size of the block to be written is 7 bytes or less, the size can be specified either in the command parameter or in the command data. For 8 bytes to be written or more, the size must be specified in the command data. 
 
