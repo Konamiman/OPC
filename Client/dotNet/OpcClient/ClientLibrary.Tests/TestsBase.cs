@@ -38,5 +38,9 @@ namespace Konamiman.Opc.ClientLibrary.Tests
         {
             CollectionAssert.AreEqual(expectedBytes, responseBytes);
         }
+
+        protected ushort RandomAddress => (ushort)new Random().Next(0, ushort.MaxValue);
+
+        protected int RandomSize => RandomAddress;
     }
 }

@@ -124,6 +124,7 @@ namespace Konamiman.Opc.ClientLibrary
 
         public void ReadFromMemory(ushort address, byte[] buffer, int index, int size, bool lockAddress = false)
         {
+            ValidateThatSizeIsNotNegative(size);
             if (size == 0) return;
 
             var commandByte = (byte)(0x20 | (lockAddress ? (1 << 3) : 0));
@@ -147,6 +148,7 @@ namespace Konamiman.Opc.ClientLibrary
 
         public void ReadFromPort(byte port, byte[] buffer, int index, int size, bool autoIncrement)
         {
+            ValidateThatSizeIsNotNegative(size);
             if (size == 0) return;
 
             var commandByte = (byte)(0x40 | (autoIncrement ? (1 << 3) : 0));
@@ -167,6 +169,7 @@ namespace Konamiman.Opc.ClientLibrary
 
         public void WriteToMemory(ushort address, byte[] buffer, int index, int size, bool lockAddress = false)
         {
+            ValidateThatSizeIsNotNegative(size);
             if (size == 0) return;
 
             var commandByte = (byte)(0x30 | (lockAddress ? (1 << 3) : 0));
@@ -189,6 +192,7 @@ namespace Konamiman.Opc.ClientLibrary
 
         public void WriteToPort(byte port, byte[] buffer, int index, int size, bool autoIncrement)
         {
+            ValidateThatSizeIsNotNegative(size);
             if (size == 0) return;
 
             var commandByte = (byte)(0x50 | (autoIncrement ? (1 << 3) : 0));
@@ -248,6 +252,12 @@ namespace Konamiman.Opc.ClientLibrary
                 index += partialReceived;
                 remaining -= partialReceived;
             }
+        }
+
+        private void ValidateThatSizeIsNotNegative(int size)
+        {
+            if (size < 0)
+                throw new ArgumentOutOfRangeException($"{nameof(size)} can't be negative");
         }
     }
 }

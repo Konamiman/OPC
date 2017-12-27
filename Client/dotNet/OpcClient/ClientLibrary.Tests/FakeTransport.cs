@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Konamiman.Opc.ClientLibrary.Tests
 {
-    public class FakeTransport : ITransport
+    public class FakeTransport : TransportBase
     {
         private readonly byte[] receiveBuffer;
         private readonly List<byte> sendBuffer = new List<byte>();
@@ -17,8 +17,10 @@ namespace Konamiman.Opc.ClientLibrary.Tests
             remainingInBuffer = receiveBuffer.Length;
         }
 
-        public int Receive(byte[] buffer, int index, int size)
+        public override int Receive(byte[] buffer, int index, int size)
         {
+            ValidateParameters(buffer, index, size);
+
             if (remainingInBuffer == 0)
                 return 0;
 
@@ -30,8 +32,10 @@ namespace Konamiman.Opc.ClientLibrary.Tests
             return actualSize;
         }
 
-        public int Send(byte[] buffer, int index, int size)
+        public override int Send(byte[] buffer, int index, int size)
         {
+            ValidateParameters(buffer, index, size);
+
             sendBuffer.AddRange(buffer.Skip(index).Take(size).ToArray());
             return size;
         }

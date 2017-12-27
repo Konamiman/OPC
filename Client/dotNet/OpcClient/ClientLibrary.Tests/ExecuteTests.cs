@@ -5,16 +5,17 @@ using System.Linq;
 namespace Konamiman.Opc.ClientLibrary.Tests
 {
     [TestFixture(Category = "Execute")]
-    public class ExecuteCommand : TestsBase
+    public class ExecuteTests : TestsBase
     {
         [Test]
         [TestCase(Z80RegistersGroup.Af, 2)]
         [TestCase(Z80RegistersGroup.Main, 8)]
         [TestCase(Z80RegistersGroup.MainIndex, 12)]
         [TestCase(Z80RegistersGroup.MainIndexAlternate, 20)]
-        public void Execute_sends_proper_input_registers_information(Z80RegistersGroup inputRegistersGroup, int inputRegistersSize)
+        public void Sends_proper_input_registers_information(Z80RegistersGroup inputRegistersGroup, int inputRegistersSize)
         {
             const int address = 0xABCD;
+            const short randomAF = 0;
 
             var inputRegisters = new Z80Registers
             {
@@ -42,7 +43,7 @@ namespace Konamiman.Opc.ClientLibrary.Tests
             }
             .Take(inputRegistersSize + 3).ToArray();
 
-            CreateSut(0, 0, 0); //returns AF=0 (not tested here)
+            CreateSut(0, randomAF.GetLowByte(), randomAF.GetHighByte());
 
             var outputRegisters = sut.Execute(address, inputRegisters, inputRegistersGroup, Z80RegistersGroup.Af);
 
@@ -54,8 +55,11 @@ namespace Konamiman.Opc.ClientLibrary.Tests
         [TestCase(Z80RegistersGroup.Main, 8)]
         [TestCase(Z80RegistersGroup.MainIndex, 12)]
         [TestCase(Z80RegistersGroup.MainIndexAlternate, 20)]
-        public void Execute_returns_proper_output_registers_information(Z80RegistersGroup outputRegistersGroup, int outputRegistersSize)
+        public void Returns_proper_output_registers_information(Z80RegistersGroup outputRegistersGroup, int outputRegistersSize)
         {
+            const Z80RegistersGroup randomInputRegistersGroup = Z80RegistersGroup.Af;
+            var randomInputRegisters = new Z80Registers();
+
             var toBeReceived = new byte[]
             {
                 0x00,
@@ -68,7 +72,7 @@ namespace Konamiman.Opc.ClientLibrary.Tests
 
             CreateSut(toBeReceived);
 
-            var outputRegisters = sut.Execute(0, new Z80Registers(), Z80RegistersGroup.Af, outputRegistersGroup); //send address,AF=anything (not tested here)
+            var outputRegisters = sut.Execute(RandomAddress, randomInputRegisters, randomInputRegistersGroup, outputRegistersGroup);
 
             Assert.AreEqual(0x1122, outputRegisters.AF);
 

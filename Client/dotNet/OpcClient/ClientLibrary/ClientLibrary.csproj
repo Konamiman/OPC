@@ -50,6 +50,7 @@
     <Compile Include="OpcException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TcpTransport.cs" />
+    <Compile Include="TransportBase.cs" />
     <Compile Include="TransportException.cs" />
     <Compile Include="Z80RegistersGroup.cs" />
   </ItemGroup>

@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
 
 namespace Konamiman.Opc.ClientLibrary
 {
-    public class TcpTransport : ITransport
+    public class TcpTransport : TransportBase
     {
         readonly TcpClient tcpClient;
         readonly string remoteUrl;
@@ -31,7 +30,7 @@ namespace Konamiman.Opc.ClientLibrary
             }
         }
 
-        public int Receive(byte[] buffer, int index, int size)
+        public override int Receive(byte[] buffer, int index, int size)
         {
             ValidateParameters(buffer, index, size);
 
@@ -56,25 +55,7 @@ namespace Konamiman.Opc.ClientLibrary
             }
         }
 
-        private void ValidateParameters(byte[] buffer, int index, int size)
-        {
-            if (buffer == null)
-                throw new ArgumentException($"{nameof(buffer)} can't be null");
-
-            if (index < 0)
-                throw new ArgumentOutOfRangeException($"{nameof(index)} can't be negative");
-
-            if (size < 0)
-                throw new ArgumentOutOfRangeException($"{nameof(size)} can't be negative");
-
-            if (index >= buffer.Length)
-                throw new ArgumentOutOfRangeException($"{nameof(index)} can't be greater than the size of {nameof(buffer)}");
-
-            if(index + size > buffer.Length)
-                throw new ArgumentOutOfRangeException($"{nameof(index)}+{nameof(size)} can't be greater than the size of {nameof(buffer)}");
-        }
-
-        public int Send(byte[] buffer, int index, int size)
+        public override int Send(byte[] buffer, int index, int size)
         {
             ValidateParameters(buffer, index, size);
 

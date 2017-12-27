@@ -46,10 +46,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ExecuteCommand.cs" />
+    <Compile Include="ExecuteTests.cs" />
     <Compile Include="FakeTransport.cs" />
     <Compile Include="PingTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReadMemoryTests.cs" />
     <Compile Include="TestsBase.cs" />
   </ItemGroup>
   <ItemGroup>
