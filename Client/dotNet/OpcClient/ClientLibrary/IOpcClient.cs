@@ -41,6 +41,7 @@ namespace Konamiman.Opc.ClientLibrary
         /// <param name="buffer">Storage location for the received data.</param>
         /// <param name="index">Position in the data buffer to store the received data.</param>
         /// <param name="size">Number of bytes to receive.</param>
+        /// <param name="lockAddress">If set, all the data will be read from the same memory address.</param>
         /// <exception cref="System.ArgumentNullException">Buffer is null.</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">Offset is less than 0.-or- offset is greater than the length of buffer.-or- size
         /// is less than 0.-or- size is greater than the length of buffer minus the value
@@ -55,7 +56,8 @@ namespace Konamiman.Opc.ClientLibrary
             ushort address,
             byte[] buffer,
             int index,
-            int size);
+            int size,
+            bool lockAddress = false);
 
         /// <summary>
         /// Sends a "Write to memory" command to the OPC server.
@@ -64,6 +66,7 @@ namespace Konamiman.Opc.ClientLibrary
         /// <param name="buffer">Buffer with the data to be sent.</param>
         /// <param name="index">Position in the data buffer at which to begin sending data.</param>
         /// <param name="size">Number of bytes to send.</param>
+        /// <param name="lockAddress">If set, all the data will be written to the same memory address.</param>
         /// <exception cref="System.ArgumentNullException">Buffer is null.</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">Offset is less than 0.-or- offset is greater than the length of buffer.-or- size
         /// is less than 0.-or- size is greater than the length of buffer minus the value
@@ -78,7 +81,8 @@ namespace Konamiman.Opc.ClientLibrary
             ushort address,
             byte[] buffer,
             int index,
-            int size);
+            int size,
+            bool lockAddress = false);
 
         /// <summary>
         /// Sends a "Read from port" command to the OPC server.

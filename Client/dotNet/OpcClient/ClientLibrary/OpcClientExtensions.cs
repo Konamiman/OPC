@@ -24,16 +24,16 @@ namespace Konamiman.Opc.ClientLibrary
             return outputRegisters;
         }
 
-        public static byte[] ReadFromMemory(this IOpcClient client, ushort address, int size)
+        public static byte[] ReadFromMemory(this IOpcClient client, ushort address, int size, bool lockAddress = false)
         {
             var buffer = new byte[size];
-            client.ReadFromMemory(address, buffer, 0, size);
+            client.ReadFromMemory(address, buffer, 0, size, lockAddress);
             return buffer;
         }
 
-        public static void WriteToMemory(this IOpcClient client, ushort address, byte[] data)
+        public static void WriteToMemory(this IOpcClient client, ushort address, byte[] data, bool lockAddress = false)
         {
-            client.WriteToMemory(address, data, 0, data.Length);
+            client.WriteToMemory(address, data, 0, data.Length, lockAddress);
         }
 
         public static byte[] ReadFromPort(this IOpcClient client, byte port, int size, bool autoIncrement)

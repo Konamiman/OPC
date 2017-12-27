@@ -122,19 +122,20 @@ namespace Konamiman.Opc.ClientLibrary
             }
         }
 
-        public void ReadFromMemory(ushort address, byte[] buffer, int index, int size)
+        public void ReadFromMemory(ushort address, byte[] buffer, int index, int size, bool lockAddress = false)
         {
             if (size == 0) return;
 
-            if(size <= 15)
+            var commandByte = (byte)(0x20 | (lockAddress ? (1 << 3) : 0));
+            if (size <= 7)
             {
-                Send((byte)(0x20 | size), 
+                Send((byte)(commandByte | size), 
                     address.GetLowByte(), address.GetHighByte());
             }
             else
             {
                 var usize = size.ToUShort();
-                Send(0x20,
+                Send(commandByte,
                     address.GetLowByte(), address.GetHighByte(),
                     usize.GetLowByte(), usize.GetHighByte());
             }
@@ -164,19 +165,20 @@ namespace Konamiman.Opc.ClientLibrary
             Receive(size, buffer, index);
         }
 
-        public void WriteToMemory(ushort address, byte[] buffer, int index, int size)
+        public void WriteToMemory(ushort address, byte[] buffer, int index, int size, bool lockAddress = false)
         {
             if (size == 0) return;
 
-            if (size <= 15)
+            var commandByte = (byte)(0x30 | (lockAddress ? (1 << 3) : 0));
+            if (size <= 7)
             {
-                Send((byte)(0x30 | size),
+                Send((byte)(commandByte | size),
                     address.GetLowByte(), address.GetHighByte());
             }
             else
             {
                 var usize = size.ToUShort();
-                Send(0x30,
+                Send(commandByte,
                     address.GetLowByte(), address.GetHighByte(),
                     usize.GetLowByte(), usize.GetHighByte());
             }
