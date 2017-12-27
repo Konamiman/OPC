@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientLibrary", "ClientLibr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MsxInfoGetter", "MsxInfoGetter\MsxInfoGetter.csproj", "{DA172C0E-C3FA-4EEE-8018-D982D40A6A5D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientLibrary.Tests", "ClientLibrary.Tests\ClientLibrary.Tests.csproj", "{A47DED62-1CCA-4CC0-8207-77BE4F9CBBEB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{DA172C0E-C3FA-4EEE-8018-D982D40A6A5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA172C0E-C3FA-4EEE-8018-D982D40A6A5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA172C0E-C3FA-4EEE-8018-D982D40A6A5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A47DED62-1CCA-4CC0-8207-77BE4F9CBBEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A47DED62-1CCA-4CC0-8207-77BE4F9CBBEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A47DED62-1CCA-4CC0-8207-77BE4F9CBBEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A47DED62-1CCA-4CC0-8207-77BE4F9CBBEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

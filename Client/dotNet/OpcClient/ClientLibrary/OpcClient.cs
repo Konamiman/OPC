@@ -22,7 +22,7 @@ namespace Konamiman.Opc.ClientLibrary
 
         public byte[] Ping(int commandParameter)
         {
-            if (commandParameter < 0 && commandParameter > 15)
+            if (commandParameter < 0 || commandParameter > 15)
                 throw new ArgumentOutOfRangeException($"{nameof(commandParameter)} must be a number between 0 and 15");
 
             Send(commandParameter & 0x0F);
