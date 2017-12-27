@@ -49,6 +49,9 @@ namespace Konamiman.Opc.ClientLibrary
 
         public static void WriteToPort(this IOpcClient client, byte port, byte[] data, bool autoIncrement)
         {
+            if (data == null)
+                throw new ArgumentNullException($"{nameof(data)} can't be null");
+
             client.WriteToPort(port, data, 0, data.Length, autoIncrement);
         }
     }

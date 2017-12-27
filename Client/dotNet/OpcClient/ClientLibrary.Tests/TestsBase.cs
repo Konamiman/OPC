@@ -41,6 +41,6 @@ namespace Konamiman.Opc.ClientLibrary.Tests
 
         protected ushort RandomAddress => (ushort)new Random().Next(0, ushort.MaxValue);
 
-        protected int RandomSize => RandomAddress;
+        protected byte RandomPort => (byte)new Random().Next(0, byte.MaxValue);
     }
 }
