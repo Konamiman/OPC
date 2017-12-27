@@ -171,6 +171,7 @@ struct {
         struct {
             byte* pointer;
             bool isErrored;
+            bool lockAddress;
         } memWrite;
         struct {
             byte port;
@@ -219,6 +220,7 @@ byte ProcessNextCommandByte(byte datum);
 byte ProcessNextByteToWrite(byte datum);
 void RunCompletedCommand();
 void SendPortBytes(byte port, uint length, bool increment);
+void SendMemoryBytes(byte* address, uint length, bool lockAddress);
 void LoadRegistersBeforeExecutingCode(byte length);
 void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
@@ -560,7 +562,7 @@ byte ProcessNextCommandByte(byte datum)
     if(pendingCommand.commandCode != OPC_WRITE_MEM && pendingCommand.commandCode != OPC_WRITE_PORT)
         return PCMD_FULL;
 
-    length = pendingCommand.buffer[0] & (pendingCommand.commandCode == OPC_WRITE_MEM ? 0x0F : 0x07);
+    length = pendingCommand.buffer[0] & 0x07;
     if(length == 0) {
         length = *((uint*)&(pendingCommand.buffer[pendingCommand.commandCode == OPC_WRITE_MEM ? 3 : 2]));
     }
@@ -573,12 +575,14 @@ byte ProcessNextCommandByte(byte datum)
         address = *(byte**)&(pendingCommand.buffer[1]);
         pendingCommand.stateData.memWrite.pointer = address;
         pendingCommand.stateData.memWrite.isErrored = ((uint)address >= 0x100 && (uint)address <= SERVER_MAX_ADDRESS);
+        pendingCommand.stateData.memWrite.lockAddress = (bool)((pendingCommand.buffer[0] & (1<<3)) != 0);
         debug4("Write mem: address=0x%x, length=%u, errored: %u",
             pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
             pendingCommand.stateData.memWrite.isErrored);
         if(verbose) 
-            printf("- Received WRITE MEMORY command for address 0x%x, length=%u\r\n", 
-            pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes);
+            printf("- Received WRITE MEMORY command for address 0x%x, length=%u%s\r\n", 
+            pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
+            pendingCommand.stateData.memWrite.lockAddress ? ", lock address" : "");
     }
     else {
         pendingCommand.stateData.portWrite.port = *(byte*)&(pendingCommand.buffer[1]);
@@ -599,8 +603,10 @@ byte ProcessNextByteToWrite(byte datum)
     if(pendingCommand.commandCode == OPC_WRITE_MEM) {
         if(!pendingCommand.stateData.memWrite.isErrored) {
             *(pendingCommand.stateData.memWrite.pointer) = datum;
+            if(!pendingCommand.stateData.memWrite.lockAddress) {
+                pendingCommand.stateData.memWrite.pointer++;
+            }
         }
-        pendingCommand.stateData.memWrite.pointer++;
     }
     else {
         WriteToPort(pendingCommand.stateData.portWrite.port, datum);
@@ -612,7 +618,7 @@ byte ProcessNextByteToWrite(byte datum)
 
     if(pendingCommand.remainingBytes == 0) {
         debug2("Write %s: completed", pendingCommand.commandCode == OPC_WRITE_MEM ? "mem" : "port");
-        if(pendingCommand.stateData.memWrite.isErrored) {
+        if(pendingCommand.commandCode == OPC_WRITE_MEM && pendingCommand.stateData.memWrite.isErrored) {
             sprintf(errorMessageBuffer, "Can't write to 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
             SendErrorMessage(errorMessageBuffer);
         }
@@ -631,7 +637,10 @@ void RunCompletedCommand()
     int address;
     byte port;
     uint length;
-    bool incrementPort;
+    union {
+        bool incrementPort;
+        bool lockAddress;
+    } flags;
 
     if(pendingCommand.commandCode == OPC_EXECUTE) {
         address = *((int*)&(pendingCommand.buffer[1]));
@@ -659,33 +668,31 @@ void RunCompletedCommand()
     }
     else if(pendingCommand.commandCode == OPC_READ_MEM) {
         address = *((int*)&(pendingCommand.buffer[1]));
-        length = pendingCommand.buffer[0] & 0x0F;
+        flags.lockAddress = (pendingCommand.buffer[0] & (1 << 3)) != 0;
+        length = pendingCommand.buffer[0] & 0x07;
         if(length == 0) {
             length = *((uint*)&(pendingCommand.buffer[3]));
         }
         debug3("Read mem: address=0x%x, length=%u", address, length);
         if(verbose) 
-            printf("- Received READ MEMORY command for address 0x%x, length=%u\r\n", address, length);
+            printf("- Received READ MEMORY command for address 0x%x, length=%u%s\r\n", address, length,
+            flags.lockAddress ? ", lock address" : "");
         SendByte(0, false);
-        if(length > 0) {
-            SendBytes((byte*)address, length, true);
-        }
+        SendMemoryBytes((byte*)address, length, flags.lockAddress);
     }
     else if(pendingCommand.commandCode == OPC_READ_PORT) {
         port = *((byte*)&(pendingCommand.buffer[1]));
-        incrementPort = (pendingCommand.buffer[0] & (1 << 3)) != 0;
+        flags.incrementPort = (pendingCommand.buffer[0] & (1 << 3)) != 0;
         length = pendingCommand.buffer[0] & 0x07;
         if(length == 0) {
             length = *((uint*)&(pendingCommand.buffer[2]));
         }
-        debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, incrementPort);
+        debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, flags.incrementPort);
         if(verbose) 
             printf("- Received READ PORT command for port %u, length=%u, autoincrement=%s\r\n",
-            port, length, incrementPort ? "yes" : "no");
+            port, length, flags.incrementPort ? "yes" : "no");
         SendByte(0, false);
-        if(length > 0) {
-            SendPortBytes(port, length, incrementPort);
-        }
+        SendPortBytes(port, length, flags.incrementPort);
     }
 }
 
@@ -694,11 +701,35 @@ void SendPortBytes(byte port, uint length, bool increment)
     uint remaining = length;
     uint sendSize;
 
-    if(connectionNumber == -1) return;
+    if(connectionNumber == -1 || length == 0) return;
 
     while(remaining > 0) {
         sendSize = remaining > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : remaining;
         ReadFromPort(port, readPortBuffer, sendSize, increment);
+        SendBytes(readPortBuffer, sendSize, true);
+        remaining -= sendSize;
+    }
+}
+
+void SendMemoryBytes(byte* address, uint length, bool lockAddress)
+{
+    uint remaining;
+    uint sendSize;
+    uint i;
+
+    if(connectionNumber == -1 || length == 0) return;
+
+    if(!lockAddress) {
+        SendBytes(address, length, true);
+        return;
+    }
+
+    remaining = length;
+    while(remaining > 0) {
+        sendSize = remaining > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : remaining;
+        for(i=0; i<sendSize; i++) {
+            readPortBuffer[i] = *address;
+        }
         SendBytes(readPortBuffer, sendSize, true);
         remaining -= sendSize;
     }
