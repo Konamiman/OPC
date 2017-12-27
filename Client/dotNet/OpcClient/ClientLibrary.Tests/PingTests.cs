@@ -6,11 +6,6 @@ namespace Konamiman.Opc.ClientLibrary.Tests
     [TestFixture(Category = "Ping")]
     public class PingTests : TestsBase
     {
-        [SetUp]
-        public void Setup()
-        {
-        }
-
         [Test]
         public void Gets_proper_reply_to_tests_without_extra_info()
         {

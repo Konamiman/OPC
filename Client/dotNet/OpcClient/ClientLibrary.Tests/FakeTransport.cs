@@ -36,6 +36,6 @@ namespace Konamiman.Opc.ClientLibrary.Tests
             return size;
         }
 
-        public byte[] SentBytes => receiveBuffer.ToArray();
+        public byte[] SentBytes => sendBuffer.ToArray();
     }
 }
