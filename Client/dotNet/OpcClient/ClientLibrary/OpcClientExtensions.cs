@@ -1,4 +1,5 @@
 ﻿using Konamiman.Z80dotNet;
+using System;
 using System.Linq;
 
 namespace Konamiman.Opc.ClientLibrary
@@ -33,6 +34,9 @@ namespace Konamiman.Opc.ClientLibrary
 
         public static void WriteToMemory(this IOpcClient client, ushort address, byte[] data, bool lockAddress = false)
         {
+            if (data == null)
+                throw new ArgumentNullException($"{nameof(data)} can't be null");
+
             client.WriteToMemory(address, data, 0, data.Length, lockAddress);
         }
 
