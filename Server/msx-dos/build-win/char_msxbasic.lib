@@ -1,0 +1,57 @@
+<SDCCLIB>
+
+<INDEX>
+       175
+<MODULE>
+putchar_msxbasic 11
+.__.ABS.
+_putchar
+</MODULE>
+
+<MODULE>
+getchar_msxbasic 254
+.__.ABS.
+_getchar
+</MODULE>
+
+</INDEX>
+
+<FILES>
+
+<FILE>
+putchar_msxbasic
+<REL>
+XL2
+H 1 areas 2 global symbols
+S .__.ABS. Def0000
+A _CODE size 8 flags 0 addr 0
+S _putchar Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 7E C3 A2 00
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+getchar_msxbasic
+<REL>
+XL2
+H 1 areas 2 global symbols
+S .__.ABS. Def0000
+A _CODE size 3 flags 0 addr 0
+S _getchar Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 C3 9F 00
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+</FILES>
+
+</SDCCLIB>
