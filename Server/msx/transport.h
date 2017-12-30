@@ -4,7 +4,7 @@
 #include "types.h"
 #include "asm.h"
 
-bool InitializeTransport();
+bool InitializeTransport(void* initializationData);
 void ShutDownTransport();
 
 void DoTransportStuff();

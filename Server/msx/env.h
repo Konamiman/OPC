@@ -5,6 +5,7 @@
 
 void DoEnvironmentStuff();
 bool MustTerminateServer();
-bool CanExecuteAtAddress(uint address);
+bool CanExecuteAtAddress(byte* address);
+bool CanWriteAtAddress(byte* address);
 
 #endif

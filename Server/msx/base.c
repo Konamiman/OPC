@@ -40,7 +40,6 @@
 #include "types.h"
 #include "env.h"
 #include "transport.h"
-#include "exit.h"
 
 
 enum OpcCommands {
@@ -66,7 +65,6 @@ enum PendingCommandState {
     /* Variables */
 
 Z80_registers regs;
-int port;
 bool clientIsConnected = false;
 bool verbose = false;
 byte executeCommandPayloadLengths[4] = { 4, 10, 14, 22 };
@@ -131,8 +129,8 @@ void SendMemoryBytes(byte* address, uint length, bool lockAddress);
 void LoadRegistersBeforeExecutingCode(byte length);
 void SendResponseAfterExecutingCode(byte length);
 void ProcessReceivedByte(byte datum);
-void SendErrorMessage(const char* message);
-void SendBytes(byte* data, uint length, bool push);
+void SendErrorMessage(char* message);
+void SendByte(byte datum, bool push);
 void HandleConnectionLifetime();
 void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
 void WriteToPort(byte portNumber, byte value);
@@ -142,12 +140,12 @@ void WriteToPort(byte portNumber, byte value);
  ***  MAIN is here  ***
  **********************/
 
-void Run(bool _verbose)
+void StartOpcServer(void* transportInitData, bool _verbose)
 {
-    byte datum;
+    int datum;
 
     verbose = _verbose;
-    if(!InitializeTransport)
+    if(!InitializeTransport(transportInitData))
         return;
 
     while(!MustTerminateServer())
@@ -237,8 +235,7 @@ byte ProcessFirstCommandByte(byte datum)
     debug2("Unknown command: 0x%x", datum);
     print("*** Unknown command received, disconnecting\r\n");
     SendErrorMessage("Unknown command");
-    LetTcpipBreathe();
-    AbortTcpConnection();
+    DisconnectClient();
     return PCMD_NONE;
 }
 
@@ -269,7 +266,7 @@ byte ProcessNextCommandByte(byte datum)
     if(pendingCommand.commandCode == OPC_WRITE_MEM) {
         address = *(byte**)&(pendingCommand.buffer[1]);
         pendingCommand.stateData.memWrite.pointer = address;
-        pendingCommand.stateData.memWrite.isErrored = ((uint)address >= 0x100 && (uint)address <= SERVER_MAX_ADDRESS);
+        pendingCommand.stateData.memWrite.isErrored = !CanWriteAtAddress(address);
         pendingCommand.stateData.memWrite.lockAddress = (bool)((pendingCommand.buffer[0] & (1<<3)) != 0);
         debug4("Write mem: address=0x%x, length=%u, errored: %u",
             pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
@@ -314,8 +311,7 @@ byte ProcessNextByteToWrite(byte datum)
     if(pendingCommand.remainingBytes == 0) {
         debug2("Write %s: completed", pendingCommand.commandCode == OPC_WRITE_MEM ? "mem" : "port");
         if(pendingCommand.commandCode == OPC_WRITE_MEM && pendingCommand.stateData.memWrite.isErrored) {
-            sprintf(errorMessageBuffer, "Can't write to 0x100-0x%x, this space is used by the server", SERVER_MAX_ADDRESS);
-            SendErrorMessage(errorMessageBuffer);
+            SendErrorMessage("Can't write to this address, this space is used by the server");
         }
         else {
             SendByte(0, true);
@@ -329,7 +325,7 @@ byte ProcessNextByteToWrite(byte datum)
 
 void RunCompletedCommand()
 {
-    int address;
+    byte* address;
     byte port;
     uint length;
     union {
@@ -338,7 +334,7 @@ void RunCompletedCommand()
     } flags;
 
     if(pendingCommand.commandCode == OPC_EXECUTE) {
-        address = *((int*)&(pendingCommand.buffer[1]));
+        address = (byte*)*((int*)&(pendingCommand.buffer[1]));
 
         if(!CanExecuteAtAddress(address)) {
             debug2("Execute: address=0x%x, ERROR! Server code", address);
@@ -355,13 +351,13 @@ void RunCompletedCommand()
             if(verbose) printf("- Received EXECUTE command for address 0x%x\r\n", address);
             LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
-            AsmCall(address, &regs, REGS_ALL, REGS_ALL);
+            AsmCall((uint)address, &regs, REGS_ALL, REGS_ALL);
 
             SendResponseAfterExecutingCode(pendingCommand.stateData.registers.output-2);
         }
     }
     else if(pendingCommand.commandCode == OPC_READ_MEM) {
-        address = *((int*)&(pendingCommand.buffer[1]));
+        address = (byte*)*((int*)&(pendingCommand.buffer[1]));
         flags.lockAddress = (pendingCommand.buffer[0] & (1 << 3)) != 0;
         length = pendingCommand.buffer[0] & 0x07;
         if(length == 0) {
@@ -490,7 +486,7 @@ void SendResponseAfterExecutingCode(byte length)
     SendBytes((byte*)&(pendingCommand.buffer[2]), length+1, true);
 }
 
-void SendErrorMessage(const char* message)
+void SendErrorMessage(char* message)
 {
     byte length = strlen(message);
     SendByte(length, false);
