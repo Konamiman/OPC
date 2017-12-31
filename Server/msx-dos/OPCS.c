@@ -1,9 +1,9 @@
-/* Obsolete Procedure Call (OPC) server for MSX-DOS v1.0
-   By Konamiman 12/2017
+/* Obsolete Procedure Call (OPC) server for MSX-DOS + TCP/IP UNAPI v1.0
+   By Konamiman 1/2018
 
    Compilation command line:
    
-   sdcc --code-loc 0x180 --data-loc 0 -mz80 --disable-warning 196
+   sdcc --code-loc 0x180 --data-loc 0 -mz80 --disable-warning 196 --disable-warning 85
         --no-std-crt0 crt0msx_msxdos_advanced.rel msxchar.lib asm.lib opc.c
    hex2bin -e com opc.ihx
    
@@ -123,8 +123,8 @@ typedef unsigned short ushort;
     /* Strings */
 
 const char* strTitle=
-    "OPC server 1.0\r\n"
-    "By Konamiman, 12/2017\r\n"
+    "OPC server for TCP transport 1.0\r\n"
+    "By Konamiman, 1/2018\r\n"
     "\r\n";
     
 const char* strUsage=

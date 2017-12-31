@@ -10,9 +10,9 @@ Server/msx-dos/build-win/*.map
 Server/msx-dos/build-win/*.noi
 Server/msx-dos/build-win/*.sym
 Server/msx-dos/build-win/*.asm
-Server/msx-dos/build-win/OPC.c
-Server/msx-dos/build-win/OPC.rel
-Server/msx-dos/build-win/OPC.com
+Server/msx-dos/build-win/OPCS.c
+Server/msx-dos/build-win/OPCS.rel
+Server/msx-dos/build-win/OPCS.com
 
 sandbox/
 
