@@ -21,7 +21,7 @@ namespace Konamiman.Opc.MsxInfoGetter
             try
             {
 #if DEBUG
-                new Program().Run(new[] { "localhost", "12345", "9000" });
+                new Program().Run(new[] { "192.168.1.20", "12345", "9000" });
                 ReadKey();
 #else
                 new Program().Run(args);
@@ -53,7 +53,7 @@ By Konamiman, 1/2018
                 WriteLine(
 @"
 Gets system information from a MSX computer running a OPC server on a TCP port.
-Usage: msxinfo <OPC server address> <OPC server port> [<code execution address in hex>]");
+Usage: msxinfo <OPC server address> <OPC server port> [<code execution address in hex (default: 8000h)>]");
                 return;
             }
 
@@ -86,6 +86,7 @@ Usage: msxinfo <OPC server address> <OPC server port> [<code execution address i
             WriteLine();
             if (msxVersion > 0)
             {
+                GetVdpPorts();
                 PrintVdpType();
                 PrintVdpPorts();
                 WriteLine();
@@ -140,11 +141,15 @@ $@"
             WriteLine($"VDP type: {printableVdpType}");
         }
 
-        private void PrintVdpPorts()
+        void GetVdpPorts()
         {
             vdpReadPort = Rdslt(biosSlot, VDPREADPORT);
-            WriteLine($"VDP read port: 0x{vdpReadPort:X}");
             vdpWritePort = Rdslt(biosSlot, VDPWRITEPORT);
+        }
+
+        private void PrintVdpPorts()
+        {
+            WriteLine($"VDP read port: 0x{vdpReadPort:X}");
             WriteLine($"VDP write port: 0x{vdpWritePort:X}");
         }
 
