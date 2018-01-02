@@ -4,6 +4,11 @@
 #include <stdio.h>
 
 unsigned char j = '!';
+int i = 34;
+static int st = 89;
+const int imconst = 333;
+int imnotinit;
+int cien[100] = {0};
 
 char getthechar() __naked
 {
@@ -22,5 +27,5 @@ void main()
     putchar(j);
     putchar('\r');
     putchar('\n');
-    printf("Mola %s\r\n", "mazo");
+    printf("Mola %s %i %i\r\n", "mazo", i, st);
 }

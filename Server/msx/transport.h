@@ -4,12 +4,14 @@
 #include "types.h"
 #include "asm.h"
 
+#define SEND_CHUNK_SIZE 512
+
 bool InitializeTransport(void* initializationData);
 void ShutDownTransport();
 
 void DoTransportStuff();
 bool ClientIsConnected();
-void WaitForClientConnection();
+bool WaitForClientConnection();
 void DisconnectClient();
 
 int GetByteFromConnection();
