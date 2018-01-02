@@ -83,8 +83,6 @@ static byte readPortBuffer[SEND_CHUNK_SIZE];
 int NoParameters();
 void PrintTitle();
 void PrintUsageAndEnd();
-void ParseParameters();
-void TerminateWithErrorCode(byte errorCode);
 bool EscIsPressed();
 void SetAutoAbortOnDiskError();
 void DisableProgramTerminationOnDiskErrorAbort();
@@ -98,29 +96,24 @@ void CheckKeyPressAvailable();
  ***  MAIN is here  ***
  **********************/
 
-int main(char** argv, int argc)
+int main()
 {
     int errorCode;
 
-    arguments = argv;
-    argumentsCount = argc;
-
     PrintTitle();
-    if(NoParameters()) {
-        PrintUsageAndEnd();
-    }
+    //if(NoParameters()) {
+    //    PrintUsageAndEnd();
+    //}
 
-    ParseParameters();
-    
-    SetAutoAbortOnDiskError();
-    DisableProgramTerminationOnDiskErrorAbort();
+    port = 12345;
+    //SetAutoAbortOnDiskError();
+    //DisableProgramTerminationOnDiskErrorAbort();
     print("--- Press ESC at any time to exit\r\n\r\n");
 
-    errorCode = StartOpcServer((void*)port, verbose);
+    errorCode = StartOpcServer((void*)port, true);
 
     RestoreDefaultAbortRoutine();
     RestoreDefaultDiskErrorRoutine();
-    TerminateWithErrorCode(errorCode);
     return 0;
 }
 
@@ -170,31 +163,6 @@ void PrintUsageAndEnd()
 {
     print(strUsage);
     DosCall(0, &regs, REGS_MAIN, REGS_NONE);
-}
-
-void ParseParameters()
-{
-    port = atoi(arguments[0]);
-    if(port == 0) {
-        printf("*** Invalid parameters\r\n");
-        TerminateWithErrorCode(1);
-    }
-    
-    if(argumentsCount >= 2) {
-        if(ToLowerCase(arguments[1][0]) != 'v') {
-            printf("*** Invalid parameters\r\n");
-            TerminateWithErrorCode(1);
-        }
-
-        verbose = true;
-    }
-}
-
-void TerminateWithErrorCode(byte errorCode)
-{
-    regs.Bytes.B = errorCode;
-    DosCall(_TERM, &regs, REGS_MAIN, REGS_NONE);
-    DosCall(_TERM0, &regs, REGS_MAIN, REGS_NONE);
 }
 
 bool EscIsPressed()
@@ -306,7 +274,7 @@ void CheckKeyPressAvailable() __naked
     push ix
     ld c,#_DIRIO
     ld e,#0xFF
-    call #5
+    call #0xF37D
     pop ix
     ret
     __endasm;
