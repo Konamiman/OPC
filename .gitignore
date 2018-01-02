@@ -3,16 +3,16 @@ syntax: glob
 .vs/
 .vscode/
 
-Server/msx-dos/build-win/*.ihx
-Server/msx-dos/build-win/*.lk
-Server/msx-dos/build-win/*.lst
-Server/msx-dos/build-win/*.map
-Server/msx-dos/build-win/*.noi
-Server/msx-dos/build-win/*.sym
-Server/msx-dos/build-win/*.asm
-Server/msx-dos/build-win/OPC.c
-Server/msx-dos/build-win/OPC.rel
-Server/msx-dos/build-win/OPC.com
+Server/**/*.ihx
+Server**/*.lk
+Server**/*.lst
+Server**/*.map
+Server**/*.noi
+Server**/*.sym
+Server**/*.asm
+Server**/OPC.c
+Server**/OPC.rel
+Server**/OPC.com
 
 sandbox/
 
