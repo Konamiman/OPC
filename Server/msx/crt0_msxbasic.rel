@@ -1,5 +1,5 @@
 XL2
-H C areas 7 global symbols
+H C areas 5 global symbols
 M crt0
 S _main Ref0000
 S .__.ABS. Def0000
@@ -8,37 +8,25 @@ S l__INITIALIZER Ref0000
 S s__INITIALIZER Ref0000
 A _CODE size 0 flags 0 addr 0
 A _HEADER size 0 flags 8 addr 0
-A _HEADER0 size D flags 8 addr A000
+A _HEADER0 size 18 flags 8 addr A000
 A _HOME size 0 flags 0 addr 0
 A _INITIALIZER size 0 flags 0 addr 0
-A _GSINIT size F flags 0 addr 0
-A _GSFINAL size 1 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
 A _DATA size 0 flags 0 addr 0
 A _INITIALIZED size 0 flags 0 addr 0
 A _BSEG size 0 flags 0 addr 0
 A _BSS size 0 flags 0 addr 0
-A _HEAP size 2 flags 0 addr 0
-S _HEAP_start Def0002
-S _heap_top Def0000
+A _HEAP size 0 flags 0 addr 0
 T 00 A0
 R 00 00 02 00
-T 00 A0 FE 07 A0 00 00 07 A0 CD
-R 00 00 02 00 00 03 02 00 00 05 04 00 00 07 02 00
-T 08 A0 00 00 C3 00 00
-R 00 00 02 00 00 02 05 00 02 05 00 00
+T 00 A0 FE 07 A0 00 00 07 A0
+R 00 00 02 00 00 03 02 00 00 05 0B 00 00 07 02 00
+T 07 A0
+R 00 00 02 00
+T 07 A0 01 00 00 78 B1 C8 11 00 00 21 00 00 ED B0
+R 00 00 02 00 02 03 03 00 02 09 02 00 02 0C 04 00
+T 15 A0 C3 00 00
+R 00 00 02 00 02 03 00 00
 T 00 00
-R 00 00 0B 00
-T 00 00 00 00
-R 00 00 0B 00
-T 00 00
-R 00 00 05 00
-T 00 00 01 00 00 78 B1 C8 11 00 00 21 00 00 ED B0
-R 00 00 05 00 02 03 03 00 02 09 02 00 02 0C 04 00
-T 0E 00 C9
-R 00 00 05 00
-T 00 00 C9
-R 00 00 06 00
-T 00 00
-R 00 00 04 00
-T 02 00
 R 00 00 0B 00

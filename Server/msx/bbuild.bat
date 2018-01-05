@@ -4,7 +4,7 @@ if .%1 neq .all goto :nodel
 del opcs_core.rel
 del transport_tcp-unapi.rel
 :nodel
-set COMMON_ARGS=-mz80 --disable-warning 196 --disable-warning 85 --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-speed
+set COMMON_ARGS=-mz80 --disable-warning 196 --disable-warning 85 --max-allocs-per-node 10000 --allow-unsafe-read --opt-code-speed
 
 if not exist crt0_msxbasic.rel goto :docrt0
 for %%i in ("crt0_msxbasic.s") do set ATTRIBS=%%~ai

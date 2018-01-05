@@ -42,7 +42,6 @@
 
     /* Some handy defines */
 
-#define print printf
 #define ToLowerCase(c) ((c) | 32)
 
 #define SERVER_MAX_ADDRESS 0x2800
@@ -64,6 +63,7 @@ const char* strUsage=
     
 const char* strInvParam = "Invalid parameter";
 
+const char* ptvar = "PT%";
 
     /* Variables */
 
@@ -73,9 +73,6 @@ static Z80_registers regs;
 static int port;
 static bool verbose = false;
 static bool serverTerminated = false;
-
-static byte readPortBuffer[SEND_CHUNK_SIZE];
-#define errorMessageBuffer readPortBuffer
 
 
     /* Local function prototypes */
@@ -105,15 +102,25 @@ int main()
     //    PrintUsageAndEnd();
     //}
 
-    port = 12345;
+    regs.Words.HL = (int)ptvar;
+    AsmCall(0x5EA4, &regs, REGS_MAIN, REGS_MAIN);
+    port = *((uint*)regs.Words.DE);
+    if(port == 0) port = 12345;
+
     //SetAutoAbortOnDiskError();
     //DisableProgramTerminationOnDiskErrorAbort();
-    print("--- Press ESC at any time to exit\r\n\r\n");
+    printf("--- Listening on port %u\r\n", port);
+    Print("--- Press ESC at any time to exit\r\n\r\n");
 
     errorCode = StartOpcServer((void*)port, true);
 
-    RestoreDefaultAbortRoutine();
-    RestoreDefaultDiskErrorRoutine();
+    //RestoreDefaultAbortRoutine();
+    //RestoreDefaultDiskErrorRoutine();
+
+    __asm
+    call #0x0156
+    __endasm;
+
     return 0;
 }
 
@@ -129,9 +136,18 @@ void DoEnvironmentStuff()
     CheckKeyPressAvailable();
 }
 
-bool MustTerminateServer()
+bool MustTerminateServer() __naked
 {
-    return EscIsPressed() || serverTerminated;
+    __asm
+    call #0x009C ;CHSNS
+    ld l,#0
+    ret z
+    inc l
+    ret
+
+    __endasm;
+
+    //return EscIsPressed() || serverTerminated;
 }
 
 bool CanExecuteAtAddress(byte* address)
@@ -142,6 +158,11 @@ bool CanExecuteAtAddress(byte* address)
 bool CanWriteAtAddress(byte* address)
 {
     return !IsProhibitedAddress(address);
+}
+
+void Print(char* text)
+{
+    printf(text);
 }
 
 
@@ -155,13 +176,13 @@ int NoParameters()
 
 void PrintTitle()
 {
-    print(strTitle);
+    Print(strTitle);
 }
 
 
 void PrintUsageAndEnd()
 {
-    print(strUsage);
+    Print(strUsage);
     DosCall(0, &regs, REGS_MAIN, REGS_NONE);
 }
 
@@ -259,7 +280,7 @@ void RestoreDefaultAbortRoutine()
 
 void TerminateWithCtrlCOrCtrlStop()
 {
-    printf("*** Server manually terminated\r\n");
+    Print("*** Server manually terminated\r\n");
     serverTerminated = true;
 }
 

@@ -44,7 +44,6 @@ enum PendingCommandState {
     PCMD_FULL = 3
 };
 
-#define print printf
 #define SEND_CHUNK_SIZE 512
 
 
@@ -120,6 +119,10 @@ void SendByte(byte datum, bool push);
 bool HandleConnectionLifetime();
 void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
 void WriteToPort(byte portNumber, byte value);
+
+#define Printf1(msg, param) {sprintf(errorMessageBuffer, msg, param); Print(errorMessageBuffer);}
+#define Printf2(msg, param1, param2) {sprintf(errorMessageBuffer, msg, param1, param2); Print(errorMessageBuffer);}
+#define Printf3(msg, param1, param2, param3) {sprintf(errorMessageBuffer, msg, param1, param2, param3); Print(errorMessageBuffer);}
 
 
 /**********************
@@ -263,7 +266,7 @@ byte ProcessNextCommandByte(byte datum)
             pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
             pendingCommand.stateData.memWrite.isErrored);
         if(verbose) 
-            printf("- Received WRITE MEMORY command for address 0x%x, length=%u%s\r\n", 
+            Printf3("- Received WRITE MEMORY command for address 0x%x, length=%u%s\r\n", 
             pendingCommand.stateData.memWrite.pointer, pendingCommand.remainingBytes,
             pendingCommand.stateData.memWrite.lockAddress ? ", lock address" : "");
     }
@@ -274,7 +277,7 @@ byte ProcessNextCommandByte(byte datum)
             pendingCommand.stateData.portWrite.port, pendingCommand.remainingBytes,
             pendingCommand.stateData.portWrite.increment);
         if(verbose) 
-            printf("- Received WRITE PORT command for port %u, length=%u, autoincrement=%s\r\n", 
+            Printf3("- Received WRITE PORT command for port %u, length=%u, autoincrement=%s\r\n", 
             pendingCommand.stateData.portWrite.port, pendingCommand.remainingBytes,
             pendingCommand.stateData.portWrite.increment ? "yes" : "no");
     }
@@ -329,17 +332,17 @@ void RunCompletedCommand()
 
         if(!CanExecuteAtAddress(address)) {
             debug2("Execute: address=0x%x, ERROR! Server code", address);
-            if(verbose) printf("- Received EXECUTE command for address 0x%x, error: bad address\r\n", address);
+            if(verbose) Printf1("- Received EXECUTE command for address 0x%x, error: bad address\r\n", address);
             SendErrorMessage("Can't execute code at this address, this space is used by the server");            
         }
         else if(pendingCommand.stateData.registers.input == 22 || pendingCommand.stateData.registers.output == 22) {
             debug2("Execute: address=0x%x, ERROR! Using alternate regs", address);
-            if(verbose) printf("- Received EXECUTE command for address 0x%x, error: alt regs not supported\r\n", address);
+            if(verbose) Printf1("- Received EXECUTE command for address 0x%x, error: alt regs not supported\r\n", address);
             SendErrorMessage("Setting alternate input/output registers is not supported by this server");
         }
         else {
             debug2("Execute: address=0x%x", address);
-            if(verbose) printf("- Received EXECUTE command for address 0x%x\r\n", address);
+            if(verbose) Printf1("- Received EXECUTE command for address 0x%x\r\n", address);
             LoadRegistersBeforeExecutingCode(pendingCommand.stateData.registers.input-2);
 
             AsmCall((uint)address, &regs, REGS_ALL, REGS_ALL);
@@ -356,7 +359,7 @@ void RunCompletedCommand()
         }
         debug3("Read mem: address=0x%x, length=%u", address, length);
         if(verbose) 
-            printf("- Received READ MEMORY command for address 0x%x, length=%u%s\r\n", address, length,
+            Printf3("- Received READ MEMORY command for address 0x%x, length=%u%s\r\n", address, length,
             flags.lockAddress ? ", lock address" : "");
         SendByte(0, false);
         SendMemoryBytes((byte*)address, length, flags.lockAddress);
@@ -370,7 +373,7 @@ void RunCompletedCommand()
         }
         debug4("Read port: port=0x%x, length=%u, incr=%u", port, length, flags.incrementPort);
         if(verbose) 
-            printf("- Received READ PORT command for port %u, length=%u, autoincrement=%s\r\n",
+            Printf3("- Received READ PORT command for port %u, length=%u, autoincrement=%s\r\n",
             port, length, flags.incrementPort ? "yes" : "no");
         SendByte(0, false);
         SendPortBytes(port, length, flags.incrementPort);

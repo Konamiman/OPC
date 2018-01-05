@@ -42,7 +42,6 @@
 
     /* Some handy defines */
 
-#define print printf
 #define ToLowerCase(c) ((c) | 32)
 
 #define SERVER_MAX_ADDRESS 0x2800
@@ -114,7 +113,7 @@ int main(char** argv, int argc)
     
     SetAutoAbortOnDiskError();
     DisableProgramTerminationOnDiskErrorAbort();
-    print("--- Press ESC at any time to exit\r\n\r\n");
+    Print("--- Press ESC at any time to exit\r\n\r\n");
 
     errorCode = StartOpcServer((void*)port, verbose);
 
@@ -151,6 +150,23 @@ bool CanWriteAtAddress(byte* address)
     return !IsProhibitedAddress(address);
 }
 
+bool Print(char* text) __naked
+{
+    __asm
+
+    ld hl,#2
+    add hl,sp
+printloop:
+    ld a,(hl)
+    or a
+    ret z
+    ld c,#2
+    call #5
+    jr printloop    
+
+    __endasm;
+}
+
 
 /* Local functions */
 
@@ -162,13 +178,13 @@ int NoParameters()
 
 void PrintTitle()
 {
-    print(strTitle);
+    Print(strTitle);
 }
 
 
 void PrintUsageAndEnd()
 {
-    print(strUsage);
+    Print(strUsage);
     DosCall(0, &regs, REGS_MAIN, REGS_NONE);
 }
 
