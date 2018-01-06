@@ -17,7 +17,6 @@
    Comments are welcome: konamiman@konamiman.com
 */
 
-//#define DEBUG
 
 #include <stdio.h>
 #include <string.h>
@@ -27,17 +26,11 @@
 #include "env.h"
 #include "transport.h"
 
+#define DefaultPort 3434
 
-    /* MSX-DOS functions */
+    /* BIOS and BASIC functions */
 
-#define _TERM0 0
-#define _DIRIO 0x06
-#define _TERM 0x62
-#define _DEFAB 0x63
-#define _DEFER 0x64
-
-#define _CTRLC 0x9E
-#define _STOP 0x9F
+#define PTRGET 0x5EA4
 
 
     /* Some handy defines */
@@ -56,19 +49,10 @@ const char* strTitle=
     "OPC server for TCP v1.0\r\n"
     "By Konamiman, 1/2018\r\n"
     "\r\n";
-    
-const char* strUsage=
-    "Usage: opcs <local port> [v]\r\n"
-    "       v = verbose mode\r\n";
-    
-const char* strInvParam = "Invalid parameter";
 
-const char* ptvar = "PT%";
 
     /* Variables */
 
-static char** arguments;
-static int argumentsCount;
 static Z80_registers regs;
 static int port;
 static bool verbose = false;
@@ -77,52 +61,41 @@ static bool serverTerminated = false;
 
     /* Local function prototypes */
 
-int NoParameters();
-void PrintTitle();
-void PrintUsageAndEnd();
-bool EscIsPressed();
-void SetAutoAbortOnDiskError();
-void DisableProgramTerminationOnDiskErrorAbort();
-void RestoreDefaultDiskErrorRoutine();
-void RestoreDefaultAbortRoutine();
-void TerminateWithCtrlCOrCtrlStop();
+int ReadBasicIntVariable(char* variableName);
+#define ClearKeyboardBuffer() __asm__ ("call #0x0156") //KILBUF
 
 
 /**********************
  ***  MAIN is here  ***
  **********************/
 
-//H.ERRO (FFB1H)
-
-int main()
+void main()
 {
-    int errorCode;
+    int port;
+    bool verboseMode;
 
-    PrintTitle();
-    //if(NoParameters()) {
-    //    PrintUsageAndEnd();
-    //}
+    Print(strTitle);
 
-    regs.Words.HL = (int)ptvar;
-    AsmCall(0x5EA4, &regs, REGS_MAIN, REGS_MAIN);
-    port = *((uint*)regs.Words.DE);
-    if(port == 0) port = 12345;
-
-    //SetAutoAbortOnDiskError();
-    //DisableProgramTerminationOnDiskErrorAbort();
+    port = ReadBasicIntVariable("P%");
+    if(port == 0) {
+        port = DefaultPort;
+    }
+    
     printf("--- Listening on port %u\r\n", port);
-    Print("--- Press ESC at any time to exit\r\n\r\n");
+    if(port == DefaultPort) {
+        printf("    To use a different port do P%c=<port>\r\n",'%');
+    }
 
-    errorCode = StartOpcServer((void*)port, true);
+    verboseMode = ReadBasicIntVariable("V%") != 0;
+    if(!verboseMode) {
+        printf("    To enable verbose mode do V%c=1\r\n",'%');
+    }
 
-    //RestoreDefaultAbortRoutine();
-    //RestoreDefaultDiskErrorRoutine();
+    Print("\r\n--- Press any key to exit\r\n\r\n");
 
-    __asm
-    call #0x0156
-    __endasm;
+    StartOpcServer((void*)port, verboseMode);
 
-    return 0;
+    ClearKeyboardBuffer();
 }
 
 
@@ -141,7 +114,6 @@ void DoEnvironmentStuff()
 bool MustTerminateServer() 
 {
     return AnyKeyIsPressed();
-    //return EscIsPressed() || serverTerminated;
 }
 
 bool CanExecuteAtAddress(byte* address)
@@ -162,108 +134,10 @@ void Print(char* text)
 
 /* Local functions */
 
-int NoParameters()
+int ReadBasicIntVariable(char* variableName)
 {
-    return (argumentsCount == 0);
-}
-
-
-void PrintTitle()
-{
-    Print(strTitle);
-}
-
-
-void PrintUsageAndEnd()
-{
-    Print(strUsage);
-    DosCall(0, &regs, REGS_MAIN, REGS_NONE);
-}
-
-bool EscIsPressed()
-{
-    return (*((byte*)0xFBEC) & 4) == 0;
-}
-
-
-/*
-Prevent a "Disk error - Abort, Retry, Ignore?" prompt
-to be thrown at the console if a disk access related
-MSX-DOS function call is invoked and fails;
-instead, the operation is simply auto-aborted
-(and DisableProgramTerminationOnDiskErrorAbort prevents
-that from terminating the program).
-
-Unfortunately this does not work on MSX-DOS 1.
-*/
-
-void SetAutoAbortOnDiskError() __naked
-{
-    __asm
-    
-    push    ix
-    ld  de,#DISKERR_CODE
-    ld  c,#_DEFER
-    call    #0xF37D
-    pop ix
-    ret
-
-DISKERR_CODE:
-    ld a,#1
-    ret
-
-    __endasm;
-}
-
-void RestoreDefaultDiskErrorRoutine()
-{
-    regs.Words.DE = 0;
-    DosCall(_DEFER, &regs, REGS_MAIN, REGS_NONE);
-}
-
-
-/*
-Prevent the program from terminating abruptely
-after a disk error has been auto-aborted,
-or when the user presses Ctrl-C or Ctrl-STOP.
-
-In case of disk error, the program simply continues.
-In case of Ctrl-C or Ctrl-STOP being pressed,
-the program terminates gracefully.
-
-Unfortunately this does not work on MSX-DOS 1.
-*/
-
-void DisableProgramTerminationOnDiskErrorAbort() __naked
-{
-    __asm
-    
-    push    ix
-    ld  de,#ABORT_CODE
-    ld  c,#_DEFAB
-    call    #0xF37D
-    pop ix
-    ret
-
-    ;Input:  A = Primary error code
-    ;        B = Secondary error code, 0 if none
-    ;Output: A = Actual error code to use
-ABORT_CODE:
-    pop hl  ;This causes the program to continue instead of terminating
-    
-    ld  c,a ;Return the secondary error code if present,
-    ld  a,b ;instead of the generic "Operation aborted" error
-    or  a
-    ret nz
-    ld  a,c
-    ret
-
-    __endasm;
-}
-
-void RestoreDefaultAbortRoutine()
-{
-    regs.Words.DE = 0;
-    DosCall(_DEFAB, &regs, REGS_MAIN, REGS_NONE);
+    regs.Words.HL = (int)variableName;
+    AsmCall(PTRGET, &regs, REGS_MAIN, REGS_MAIN);
+    return *((int*)regs.Words.DE);
 }
 
