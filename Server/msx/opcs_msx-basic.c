@@ -86,13 +86,13 @@ void DisableProgramTerminationOnDiskErrorAbort();
 void RestoreDefaultDiskErrorRoutine();
 void RestoreDefaultAbortRoutine();
 void TerminateWithCtrlCOrCtrlStop();
-void CheckKeyPressAvailable();
-bool AnyKeyIsPressed();
 
 
 /**********************
  ***  MAIN is here  ***
  **********************/
+
+//H.ERRO (FFB1H)
 
 int main()
 {
@@ -134,7 +134,6 @@ int main()
 
 void DoEnvironmentStuff()
 {
-    CheckKeyPressAvailable();
 }
 
 #include "key_is_pressed.c"
@@ -205,7 +204,7 @@ void SetAutoAbortOnDiskError() __naked
     push    ix
     ld  de,#DISKERR_CODE
     ld  c,#_DEFER
-    call    #5
+    call    #0xF37D
     pop ix
     ret
 
@@ -242,7 +241,7 @@ void DisableProgramTerminationOnDiskErrorAbort() __naked
     push    ix
     ld  de,#ABORT_CODE
     ld  c,#_DEFAB
-    call    #5
+    call    #0xF37D
     pop ix
     ret
 
@@ -250,11 +249,6 @@ void DisableProgramTerminationOnDiskErrorAbort() __naked
     ;        B = Secondary error code, 0 if none
     ;Output: A = Actual error code to use
 ABORT_CODE:
-    cp  #_CTRLC
-    jp  z,_TerminateWithCtrlCOrCtrlStop
-    cp  #_STOP
-    jp  z,_TerminateWithCtrlCOrCtrlStop
-
     pop hl  ;This causes the program to continue instead of terminating
     
     ld  c,a ;Return the secondary error code if present,
@@ -273,25 +267,3 @@ void RestoreDefaultAbortRoutine()
     DosCall(_DEFAB, &regs, REGS_MAIN, REGS_NONE);
 }
 
-void TerminateWithCtrlCOrCtrlStop()
-{
-    Print("*** Server manually terminated\r\n");
-    serverTerminated = true;
-}
-
-/*
-Implemented in ASM for performance
-(this is called continuosly in a loop)
-*/
-
-void CheckKeyPressAvailable() __naked
-{
-    __asm
-    push ix
-    ld c,#_DIRIO
-    ld e,#0xFF
-    call #0xF37D
-    pop ix
-    ret
-    __endasm;
-}
