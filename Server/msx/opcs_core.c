@@ -132,6 +132,7 @@ void WriteToPort(byte portNumber, byte value);
 int StartOpcServer(void* transportInitData, bool _verbose)
 {
     int datum;
+    bool x;
 
     verbose = _verbose;
     if(!InitializeTransport(transportInitData))
@@ -139,7 +140,7 @@ int StartOpcServer(void* transportInitData, bool _verbose)
 
     pendingCommand.state = PCMD_NONE;
 
-    while(!MustTerminateServer())
+    while(!(x=MustTerminateServer()))
     {
         DoEnvironmentStuff();
         DoTransportStuff();
@@ -153,6 +154,7 @@ int StartOpcServer(void* transportInitData, bool _verbose)
         }
     }
 
+        printf("!! %u\r\n",(uint)x);
     ShutDownTransport();
     return 0;
 }

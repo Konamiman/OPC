@@ -87,6 +87,7 @@ void RestoreDefaultDiskErrorRoutine();
 void RestoreDefaultAbortRoutine();
 void TerminateWithCtrlCOrCtrlStop();
 void CheckKeyPressAvailable();
+bool AnyKeyIsPressed();
 
 
 /**********************
@@ -136,17 +137,11 @@ void DoEnvironmentStuff()
     CheckKeyPressAvailable();
 }
 
-bool MustTerminateServer() __naked
+#include "key_is_pressed.c"
+
+bool MustTerminateServer() 
 {
-    __asm
-    call #0x009C ;CHSNS
-    ld l,#0
-    ret z
-    inc l
-    ret
-
-    __endasm;
-
+    return AnyKeyIsPressed();
     //return EscIsPressed() || serverTerminated;
 }
 
