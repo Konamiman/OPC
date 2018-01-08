@@ -23,9 +23,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "asm.h"
-#include "debug.h"
 #include "env.h"
-#include "transport.h"
+#include "opcs_core.h"
 
 
     /* MSX-DOS functions */
@@ -46,8 +45,6 @@
 
 #define SERVER_MAX_ADDRESS 0x2800
 #define IsProhibitedAddress(address) ((bool)(address >= (byte*)100 && address <= (byte*)SERVER_MAX_ADDRESS))
-
-int StartOpcServer(void* transportInitData, bool _verbose);
 
 
     /* Strings */
@@ -73,9 +70,6 @@ static int port;
 static bool verbose = false;
 static bool serverTerminated = false;
 
-static byte readPortBuffer[SEND_CHUNK_SIZE];
-#define errorMessageBuffer readPortBuffer
-
 
     /* Local function prototypes */
 
@@ -84,13 +78,13 @@ void PrintTitle();
 void PrintUsageAndEnd();
 void ParseParameters();
 void TerminateWithErrorCode(byte errorCode);
-bool EscIsPressed();
 void SetAutoAbortOnDiskError();
 void DisableProgramTerminationOnDiskErrorAbort();
 void RestoreDefaultDiskErrorRoutine();
 void RestoreDefaultAbortRoutine();
 void TerminateWithCtrlCOrCtrlStop();
 void CheckKeyPressAvailable();
+void ClearKeyboardBuffer();
 
 
 /**********************
@@ -113,12 +107,13 @@ int main(char** argv, int argc)
     
     SetAutoAbortOnDiskError();
     DisableProgramTerminationOnDiskErrorAbort();
-    Print("--- Press ESC at any time to exit\r\n\r\n");
+    Print("--- Press any key to exit\r\n\r\n");
 
     errorCode = StartOpcServer((void*)port, verbose);
 
     RestoreDefaultAbortRoutine();
     RestoreDefaultDiskErrorRoutine();
+    ClearKeyboardBuffer();
     TerminateWithErrorCode(errorCode);
     return 0;
 }
@@ -135,9 +130,11 @@ void DoEnvironmentStuff()
     CheckKeyPressAvailable();
 }
 
-bool MustTerminateServer()
+#include "key_is_pressed.c"
+
+bool MustTerminateServer() 
 {
-    return EscIsPressed() || serverTerminated;
+    return AnyKeyIsPressed();
 }
 
 bool CanExecuteAtAddress(byte* address)
@@ -150,21 +147,9 @@ bool CanWriteAtAddress(byte* address)
     return !IsProhibitedAddress(address);
 }
 
-bool Print(char* text) __naked
+void Print(char* text)
 {
-    __asm
-
-    ld hl,#2
-    add hl,sp
-printloop:
-    ld a,(hl)
-    or a
-    ret z
-    ld c,#2
-    call #5
-    jr printloop    
-
-    __endasm;
+    printf(text);
 }
 
 
@@ -211,11 +196,6 @@ void TerminateWithErrorCode(byte errorCode)
     regs.Bytes.B = errorCode;
     DosCall(_TERM, &regs, REGS_MAIN, REGS_NONE);
     DosCall(_TERM0, &regs, REGS_MAIN, REGS_NONE);
-}
-
-bool EscIsPressed()
-{
-    return (*((byte*)0xFBEC) & 4) == 0;
 }
 
 
@@ -319,11 +299,31 @@ Implemented in ASM for performance
 void CheckKeyPressAvailable() __naked
 {
     __asm
-    push ix
+
+    ;push ix
     ld c,#_DIRIO
     ld e,#0xFF
     call #5
-    pop ix
+    ;pop ix
     ret
+
+    __endasm;
+}
+
+void ClearKeyboardBuffer() __naked
+{
+    __asm
+
+    ;push ix
+ckbloop:
+    ld c,#_DIRIO
+    ld e,#0xFF
+    call #5
+    or a
+    jr nz,ckbloop
+
+    ;pop ix
+    ret
+
     __endasm;
 }

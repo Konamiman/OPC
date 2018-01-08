@@ -22,9 +22,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "asm.h"
-#include "debug.h"
 #include "env.h"
-#include "transport.h"
+#include "opcs_core.h"
 
 #define DefaultPort 3434
 
@@ -39,8 +38,6 @@
 
 #define SERVER_MAX_ADDRESS 0x2800
 #define IsProhibitedAddress(address) ((bool)(address >= (byte*)100 && address <= (byte*)SERVER_MAX_ADDRESS))
-
-int StartOpcServer(void* transportInitData, bool _verbose);
 
 
     /* Strings */

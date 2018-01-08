@@ -7,7 +7,7 @@
 
 	.area _HEADER (ABS)
 
-	.org    0xA000 
+	.org    0x9800 
     .db 	0xFE
     .dw 	init
     .dw		end
