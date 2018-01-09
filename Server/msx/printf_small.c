@@ -39,13 +39,10 @@
    format     output type       argument-type
      %d        decimal             int
      %ld       decimal             long
-     %hd       decimal             char
      %x        hexadecimal         int
      %lx       hexadecimal         long
-     %hx       hexadecimal         char
      %o        octal               int
      %lo       octal               long
-     %ho       octal               char
      %c        character           char
      %s        character           generic pointer
 
@@ -105,88 +102,82 @@ static void format_string_small (char* buf, const char *fmt, va_list ap)
   const char *ch;
   char radix;
   char flong;
-  char fstr;
-  char fchar;
   char funsigned;
   char *str;
-  char *str1;
   long val;
   static char buffer[16];
+  char theChar;
 
   ch = fmt;
 
-  while (*ch)
+  while ((theChar = *ch)!=0)
   {
-    if (*ch == '%')
-    {
-      flong = fstr = fchar = funsigned = 0;
-      radix = 0;
-      ++ch;
-
-      if (*ch == 'l')
-        {
-          flong = 1;
-          ++ch;
-        }
-      else if (*ch == 'h')
-        {
-          fchar = 1;
-          ++ch;
-        }
-
-      if (*ch == 's')
-        fstr = 1;
-      else if (*ch == 'd')
-        radix = 10;
-      else if (*ch == 'x')
-        radix = 16;
-      else if (*ch == 'c')
-        radix = 0;
-      else if (*ch == 'o')
-        radix = 8;
-      else if (*ch == 'u') {
-        radix = 10;
-        funsigned = 1;
-      }
-
-      if (fstr)
-        {
-          str = va_arg (ap, char *);
-          while (*str)
-            do_char_inc (buf, *str++);
-        }
-      else
-        {
-          if (flong)
-            val = va_arg (ap, long);
-          else if (fchar)
-            val = (char) va_arg (ap, int);  // FIXME: SDCC casts char arguments into ints
-          else
-            {
-              val = va_arg (ap, int);
-            }
-
-          if (radix)
-            {
-              if(funsigned)
-                _ultoa (val, buffer, radix);
-              else
-                _ltoa (val, buffer, radix);
-
-              str1 = buffer;
-              while (*str1)
-                {
-                  do_char_inc (buf,*str1++);
-                }
-            }
-          else
-            do_char_inc (buf, (char) val);
-        }
-    }
-    else
-      do_char_inc (buf,*ch);
+    flong = funsigned = 0;
+    radix = 0;
 
     ++ch;
+
+    if(theChar != '%') {
+      do_char_inc (buf,theChar);
+      continue;
+    }
+
+    theChar = *ch;
+    ++ch;
+
+    if (theChar == 's')
+    {
+      str = va_arg (ap, char *);
+      while (*str)
+        do_char_inc (buf, *str++);
+
+      continue;
+    } 
+
+    if (theChar == 'c')
+    {
+      val = va_arg (ap, int);
+      do_char_inc (buf, (char) val);
+
+      continue;
+    } 
+
+    if (theChar == 'l')
+    {
+      flong = 1;
+      theChar = *ch;
+      ++ch;
+    }
+
+    if (theChar == 'd')
+      radix = 10;
+    else if (theChar == 'x')
+      radix = 16;
+    else if (theChar == 'o')
+      radix = 8;
+    else if (theChar == 'u') {
+      radix = 10;
+      funsigned = 1;
+    }
+
+    if(!radix) {
+      do_char_inc (buf, theChar);
+      continue;
+    }
+
+    if (flong)
+      val = va_arg (ap, long);
+    else
+      val = va_arg (ap, int);
+
+    if(funsigned)
+      _ultoa (val, buffer, radix);
+    else
+      _ltoa (val, buffer, radix);
+
+    str = buffer;
+    while (*str)
+      do_char_inc (buf,*str++);
   }
   if(buf) *buf = '\0';
 }
