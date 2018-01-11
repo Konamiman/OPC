@@ -1,12 +1,12 @@
 /*-------------------------------------------------------------------------
    printf_small.c - source file for reduced version of printf
 
-   Copyright (C) 1999, Sandeep Dutta <sandeep.dutta AT ieee.org>
+   Copyright(C) 1999, Sandeep Dutta <sandeep.dutta AT ieee.org>
    Modified for pic16 port, by Vangelis Rokas, 2004 <vrokas AT otenet.gr>
 
    This library is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 2, or (at your option) any
+   Free Software Foundation; either version 2, or(at your option) any
    later version.
 
    This library is distributed in the hope that it will be useful,
@@ -33,7 +33,7 @@
  * function is provided by the user.
  * The user can write his own putchar() function and link it
  * with the source *BEFORE* the libc18f.lib library. This way
- * the linker will link the first function (i.e. the user's function) */
+ * the linker will link the first function(i.e. the user's function) */
 
 /* following formats are supported :-
    format     output type       argument-type
@@ -56,20 +56,20 @@
 void _ultoa(long val, char* buffer, char radix);
 void _uitoa(int val, char* buffer, char radix);
 
-static void format_string_small (char* buf, const char *fmt, va_list ap);
+static int format_string(const char* buf, const char *fmt, va_list ap);
 
-void printf_small(const char *fmt, ...)
+int printf(const char *fmt, ...)
 {
   va_list arg;
-  va_start (arg, fmt);
-  format_string_small(0, fmt, arg);
+  va_start(arg, fmt);
+  return format_string(0, fmt, arg);
 }
 
-void sprintf_small(const char* buf, const char* fmt, ...)
+int sprintf(const char* buf, const char* fmt, ...)
 {
   va_list arg;
-  va_start (arg, fmt);
-  format_string_small(buf, fmt, arg);
+  va_start(arg, fmt);
+  return format_string(buf, fmt, arg);
 }
 
 static void do_char(const char* buf, char c) __naked
@@ -89,95 +89,101 @@ static void do_char(const char* buf, char c) __naked
 
   jp z,_putchar_rr_dbs
 
-  ld (hl),e
+  ld(hl),e
   ret
 
   __endasm;
 }
 
-#define do_char_inc(buf, c) {do_char(buf,c); if(buf) buf++;}
+#define do_char_inc(c) {do_char(bufPnt,c); if(bufPnt) { bufPnt++; } count++;}
 
-static void format_string_small (char* buf, const char *fmt, va_list ap)
+static int format_string(const char* buf, const char *fmt, va_list ap)
 {
-  const char *ch;
+  char *fmtPnt;
+  char *bufPnt;
   char radix;
-  char flong;
-  char funsigned;
+  char isLong;
+  char isUnsigned;
   char *str;
   long val;
   static char buffer[16];
   char theChar;
+  int count=0;
 
-  ch = fmt;
+  fmtPnt = fmt;
+  bufPnt = buf;
 
-  while ((theChar = *ch)!=0)
+  while((theChar = *fmtPnt)!=0)
   {
-    flong = funsigned = 0;
+    isLong = isUnsigned = 0;
     radix = 0;
 
-    ++ch;
+    fmtPnt++;
 
     if(theChar != '%') {
-      do_char_inc (buf,theChar);
+      do_char_inc(theChar);
       continue;
     }
 
-    theChar = *ch;
-    ++ch;
+    theChar = *fmtPnt;
+    fmtPnt++;
 
-    if (theChar == 's')
+    if(theChar == 's')
     {
-      str = va_arg (ap, char *);
-      while (*str)
-        do_char_inc (buf, *str++);
+      str = va_arg(ap, char *);
+      while(*str)
+        do_char_inc(*str++);
 
       continue;
     } 
 
-    if (theChar == 'c')
+    if(theChar == 'c')
     {
-      val = va_arg (ap, int);
-      do_char_inc (buf, (char) val);
+      val = va_arg(ap, int);
+      do_char_inc((char) val);
 
       continue;
     } 
 
-    if (theChar == 'l')
+    if(theChar == 'l')
     {
-      flong = 1;
-      theChar = *ch;
-      ++ch;
+      isLong = 1;
+      theChar = *fmtPnt;
+      fmtPnt++;
     }
 
-    if (theChar == 'd')
+    if(theChar == 'd')
       radix = 10;
-    else if (theChar == 'x')
+    else if(theChar == 'x')
       radix = 16;
-    else if (theChar == 'o')
+    else if(theChar == 'o')
       radix = 8;
-    else if (theChar == 'u') {
+    else if(theChar == 'u') {
       radix = 10;
-      funsigned = 1;
+      isUnsigned = 1;
     }
 
     if(!radix) {
-      do_char_inc (buf, theChar);
+      do_char_inc(theChar);
       continue;
     }
 
-    if (flong)
-      val = va_arg (ap, long);
+    if(isLong)
+      val = va_arg(ap, long);
     else
-      val = va_arg (ap, int);
+      val = va_arg(ap, int);
 
-    if(funsigned)
-      _ultoa (val, buffer, radix);
+    if(isUnsigned)
+      _ultoa(val, buffer, radix);
     else
-      _ltoa (val, buffer, radix);
+      _ltoa(val, buffer, radix);
 
     str = buffer;
-    while (*str)
-      do_char_inc (buf,*str++);
+    while((theChar = *str++) != 0) 
+      do_char_inc(theChar);
   }
-  if(buf) *buf = '\0';
+
+  if(bufPnt) *bufPnt = '\0';
+
+  return count;
 }

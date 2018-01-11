@@ -42,14 +42,14 @@ attrib -a transport_tcp-unapi.c
  :transportok
 
 echo --- Building MSX-BASIC server app...
-sdcc -o opcs-basic.ihx --code-loc 0x9820 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0_msxbasic.rel putchar_msxbasic.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-basic.c
+sdcc -o opcs-basic.ihx --code-loc 0x9820 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0_msxbasic.rel putchar_msxbasic.rel printf_small.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-basic.c
 if errorlevel 1 goto :end
 hex2bin -e bin opcs-basic.ihx
 if exist opcs.bin del opcs.bin
 ren opcs-basic.bin opcs.bin
 
 echo --- Building MSX-DOS server app...
-sdcc -o opcs-dos.ihx --code-loc 0x0180 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0msx_msxdos_advanced.rel putchar_msxdos.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-dos.c
+sdcc -o opcs-dos.ihx --code-loc 0x0180 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0msx_msxdos_advanced.rel putchar_msxdos.rel printf_small.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-dos.c
 if errorlevel 1 goto :end
 hex2bin -e com opcs-dos.ihx
 if exist opcs.com del opcs.com
