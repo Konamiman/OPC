@@ -1,60 +1,40 @@
-/*-------------------------------------------------------------------------
-   printf_small.c - source file for reduced version of printf
+/*
+   Simplified printf and sprintf for SDCC+Z80
+   (c) 2018 Konamiman - www.konamiman.com
 
-   Copyright(C) 1999, Sandeep Dutta <sandeep.dutta AT ieee.org>
-   Modified for pic16 port, by Vangelis Rokas, 2004 <vrokas AT otenet.gr>
+   This version is about 1.5K smaller than the one contained
+   in the z80 library supplied with SDCC
 
-   This library is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 2, or(at your option) any
-   later version.
+   To compile:
+   sdcc -mz80 -c --disable-warning 85 --disable-warning 196 --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-size printf.c
 
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   Supported format specifiers:
 
-   You should have received a copy of the GNU General Public License 
-   along with this library; see the file COPYING. If not, write to the
-   Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
-   MA 02110-1301, USA.
+   %d or %i: signed int
+   %ud or %ui: unsigned int
+   %x: hexadecimal int
+   %c: character
+   %s: string
+   %%: a % character
 
-   As a special exception, if you link this library with other files,
-   some of which are compiled with SDCC, to produce an executable,
-   this library does not by itself cause the resulting executable to
-   be covered by the GNU General Public License. This exception does
-   not however invalidate any other reasons why the executable file
-   might be covered by the GNU General Public License.
--------------------------------------------------------------------------*/
+   Also if SUPPORT_LONG is defined:
 
-/* This function uses function putchar() to dump a character
- * to standard output. putchar() is defined in libc18f.lib
- * as dummy function, which will be linked if no putchar()
- * function is provided by the user.
- * The user can write his own putchar() function and link it
- * with the source *BEFORE* the libc18f.lib library. This way
- * the linker will link the first function(i.e. the user's function) */
-
-/* following formats are supported :-
-   format     output type       argument-type
-     %d        decimal             int
-     %ld       decimal             long
-     %x        hexadecimal         int
-     %lx       hexadecimal         long
-     %o        octal               int
-     %lo       octal               long
-     %c        character           char
-     %s        character           generic pointer
-
-     %u, %lu
+   %l: signed long
+   %ul: unsigned long
+   %lx: hexadecimal long
 */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+//#define SUPPORT_LONG
 
-void _ultoa(long val, char* buffer, char radix);
-void _uitoa(int val, char* buffer, char radix);
+#include <stdarg.h>
+
+#ifdef SUPPORT_LONG
+extern void _ultoa(long val, char* buffer, char base);
+extern void _ltoa(long val, char* buffer, char base);
+#endif
+extern void _uitoa(int val, char* buffer, char base);
+extern void _itoa(int val, char* buffer, char base);
+extern void putchar(char* c);
 
 static int format_string(const char* buf, const char *fmt, va_list ap);
 
@@ -101,10 +81,12 @@ static int format_string(const char* buf, const char *fmt, va_list ap)
 {
   char *fmtPnt;
   char *bufPnt;
-  char radix;
+  char base;
+#ifdef SUPPORT_LONG
   char isLong;
+#endif
   char isUnsigned;
-  char *str;
+  char *strPnt;
   long val;
   static char buffer[16];
   char theChar;
@@ -115,8 +97,11 @@ static int format_string(const char* buf, const char *fmt, va_list ap)
 
   while((theChar = *fmtPnt)!=0)
   {
-    isLong = isUnsigned = 0;
-    radix = 0;
+  #ifdef SUPPORT_LONG
+    isLong = 0;
+  #endif
+    isUnsigned = 0;
+    base = 10;
 
     fmtPnt++;
 
@@ -130,9 +115,9 @@ static int format_string(const char* buf, const char *fmt, va_list ap)
 
     if(theChar == 's')
     {
-      str = va_arg(ap, char *);
-      while(*str)
-        do_char_inc(*str++);
+      strPnt = va_arg(ap, char *);
+      while((theChar = *strPnt++) != 0) 
+        do_char_inc(theChar);
 
       continue;
     } 
@@ -145,41 +130,51 @@ static int format_string(const char* buf, const char *fmt, va_list ap)
       continue;
     } 
 
+#ifdef SUPPORT_LONG
     if(theChar == 'l')
     {
       isLong = 1;
       theChar = *fmtPnt;
       fmtPnt++;
     }
+#endif
 
-    if(theChar == 'd')
-      radix = 10;
-    else if(theChar == 'x')
-      radix = 16;
-    else if(theChar == 'o')
-      radix = 8;
-    else if(theChar == 'u') {
-      radix = 10;
+    if(theChar == 'u') {
       isUnsigned = 1;
     }
-
-    if(!radix) {
+    else if(theChar == 'x') {
+      base = 16;
+    }
+    else if(theChar != 'd' && theChar != 'i') {
       do_char_inc(theChar);
       continue;
     }
 
+#ifdef SUPPORT_LONG
     if(isLong)
       val = va_arg(ap, long);
     else
       val = va_arg(ap, int);
 
-    if(isUnsigned)
-      _ultoa(val, buffer, radix);
+    if(isUnsigned && isLong)
+      _ultoa(val, buffer, base);
+    else if(isUnsigned)
+      _uitoa(val, buffer, base);
+    else if(isLong)
+      _ltoa(val, buffer, base);
     else
-      _ltoa(val, buffer, radix);
+      _itoa(val, buffer, base);
+#else
+    val = va_arg(ap, int);
+    
+    if(isUnsigned)
+      _uitoa(val, buffer, base);
+    else
+      _itoa(val, buffer, base);
+#endif
 
-    str = buffer;
-    while((theChar = *str++) != 0) 
+    strPnt = buffer;
+    while((theChar = *strPnt++) != 0) 
       do_char_inc(theChar);
   }
 

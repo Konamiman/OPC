@@ -1,9 +1,9 @@
 <SDCCLIB>
 
 <INDEX>
-       263
+       277
 <MODULE>
-putchar_msxdos 11
+putchar_msxbasic 11
 .__.ABS.
 _putchar
 _putchar_rr_s
@@ -11,12 +11,13 @@ _putchar_rr_dbs
 </MODULE>
 
 <MODULE>
-getchar_msxdos 382
+getchar_msxbasic 390
+.__.ABS.
 _getchar
 </MODULE>
 
 <MODULE>
-printf_small 565
+printf_small 618
 .__.ABS.
 _sprintf
 _printf
@@ -27,24 +28,24 @@ _printf
 <FILES>
 
 <FILE>
-putchar_msxdos
+putchar_msxbasic
 <REL>
 XL2
 H 1 areas 4 global symbols
 S .__.ABS. Def0000
-A _CODE size A flags 0 addr 0
+A _CODE size C flags 0 addr 0
 S _putchar Def0000
 S _putchar_rr_s Def0000
-S _putchar_rr_dbs Def0005
+S _putchar_rr_dbs Def0008
 T 00 00
 R 00 00 00 00
 T 00 00
 R 00 00 00 00
-T 00 00 21 02 00 39 5E
+T 00 00 21 02 00 39 7E C3 A2 00
 R 00 00 00 00
-T 05 00
+T 08 00
 R 00 00 00 00
-T 05 00 0E 02 C3 05 00
+T 08 00 7B C3 A2 00
 R 00 00 00 00
 </REL>
 <ADB>
@@ -52,13 +53,16 @@ R 00 00 00 00
 </FILE>
 
 <FILE>
-getchar_msxdos
+getchar_msxbasic
 <REL>
-XL
-H 1 areas 1 global symbols
-A _CODE size 6 flags 0
+XL2
+H 1 areas 2 global symbols
+S .__.ABS. Def0000
+A _CODE size 3 flags 0 addr 0
 S _getchar Def0000
-T 00 00 0E 08 CD 05 00 C9
+T 00 00
+R 00 00 00 00
+T 00 00 C3 9F 00
 R 00 00 00 00
 </REL>
 <ADB>

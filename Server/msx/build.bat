@@ -29,7 +29,7 @@ attrib -a transport_tcp-unapi.c
 :transportok
 
 echo --- Building server app...
-sdcc -o opcs.ihx --code-loc 0x180 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0msx_msxdos_advanced.rel putchar_msx-dos.rel printf.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-dos.c
+sdcc -o opcs.ihx --code-loc 0x180 --data-loc 0 %COMMON_ARGS% --no-std-crt0 crt0msx_msxdos_advanced.rel putchar_msxdos.rel printf_small.rel asm.lib opcs_core.rel transport_tcp-unapi.rel opcs_msx-dos.c
 if errorlevel 1 goto :end
 hex2bin -e com opcs.ihx
 

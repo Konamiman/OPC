@@ -1,3 +1,14 @@
+	;--- crt0.asm for MSX-BASIC - by Konamiman, 1/2018
+	;
+	;    Change the .org directive as appropriate for your program
+	;
+	;    To assemble it:
+	;    sdasz80 -o crt0_msxbasic.rel crt0_msxbasic.s
+	;
+	;    Compile programs with --code-loc <org address + 32> --data-loc X
+	;    X=0  -> global vars will be placed immediately after code
+	;    X!=0 -> global vars will be placed at address X
+	
 	.module crt0
 	.globl	_main
 
@@ -7,7 +18,7 @@
 
 	.area _HEADER (ABS)
 
-	.org    0x9800 
+	.org    0x9800
     .db 	0xFE
     .dw 	init
     .dw		end
@@ -19,7 +30,7 @@ init:
     ld	bc, #l__INITIALIZER
 	ld	a, b
 	or	a, c
-	ret	z
+	jp	z,_main
 	ld	de, #s__INITIALIZED
 	ld	hl, #s__INITIALIZER
 	ldir

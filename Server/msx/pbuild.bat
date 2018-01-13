@@ -1,11 +1,12 @@
 @echo off
 
 echo ---printf_small
-sdcc -mz80 -c --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-size .\printf_small.c
+sdcc -mz80 -c --disable-warning 85 --disable-warning 196 --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-size printf_small.c
 if errorlevel 1 goto :end
 
 echo ---test
-sdcc -mz80 --code-loc 0x180 --data-loc 0 --no-std-crt0 .\crt0msx_msxdos.rel .\char_msxdos.lib .\printf_test.c
+rem sdcc -mz80 --code-loc 0x180 --data-loc 0 --no-std-crt0 .\crt0msx_msxdos.rel .\printf_small.rel putchar_msxdos.rel getchar_msxdos.rel .\printf_test.c
+sdcc -mz80 --code-loc 0x180 --data-loc 0 --no-std-crt0 .\crt0msx_msxdos.rel printf_small.rel putchar_msxdos.rel .\printf_test.c
 if errorlevel 1 goto :end
 
 hex2bin -e com printf_test.ihx
