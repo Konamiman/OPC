@@ -1,16 +1,9 @@
 <SDCCLIB>
 
 <INDEX>
-       994
+       977
 <MODULE>
-AsmCall 11
-.__.ABS.
-_AsmCall_start
-_AsmCall
-</MODULE>
-
-<MODULE>
-BiosCall 1460
+BiosCall 11
 .__.ABS.
 _BiosCall
 _BiosCall_start
@@ -18,7 +11,7 @@ _BiosCall_end
 </MODULE>
 
 <MODULE>
-DosCall 2322
+DosCall 873
 .__.ABS.
 _DosCall
 _DosCall_start
@@ -26,7 +19,7 @@ _DosCall_end
 </MODULE>
 
 <MODULE>
-UnapiBuildCodeBlock 3209
+UnapiBuildCodeBlock 1760
 .__.ABS.
 _UnapiBuildCodeBlock_end
 _UnapiBuildCodeBlock
@@ -34,7 +27,7 @@ _UnapiBuildCodeBlock_start
 </MODULE>
 
 <MODULE>
-UnapiCall 6542
+UnapiCall 5093
 .__.ABS.
 _UnapiCall
 _UnapiCall_start
@@ -42,7 +35,7 @@ _UnapiCall_end
 </MODULE>
 
 <MODULE>
-UnapiGetCount 7487
+UnapiGetCount 6038
 .__.ABS.
 _UnapiGetCount
 _UnapiGetCount_start
@@ -50,7 +43,7 @@ _UnapiGetCount_end
 </MODULE>
 
 <MODULE>
-UnapiGetRamHelper 8605
+UnapiGetRamHelper 7156
 .__.ABS.
 _UnapiGetRamHelper_start
 _UnapiGetRamHelper_end
@@ -58,7 +51,7 @@ _UnapiGetRamHelper
 </MODULE>
 
 <MODULE>
-UnapiParseCodeBlock 9956
+UnapiParseCodeBlock 8507
 .__.ABS.
 _UnapiParseCodeBlock_start
 _UnapiParseCodeBlock_end
@@ -66,80 +59,22 @@ _UnapiParseCodeBlock
 </MODULE>
 
 <MODULE>
-UnapiRead 11054
+UnapiRead 9605
 .__.ABS.
 _UnapiRead
 _UnapiRead_start
 _UnapiRead_end
 </MODULE>
 
+<MODULE>
+AsmCall 10529
+.__.ABS.
+_AsmCall
+</MODULE>
+
 </INDEX>
 
 <FILES>
-
-<FILE>
-AsmCall
-<REL>
-XL
-H 7 areas 3 global symbols
-M AsmCall
-O -mz80
-S .__.ABS. Def0000
-A _CODE size A9 flags 0 addr 0
-S _AsmCall_start Def0000
-S _AsmCall Def0000
-A _DATA size 0 flags 0 addr 0
-A _OVERLAY size 0 flags 0 addr 0
-A _HOME size 0 flags 0 addr 0
-A _GSINIT size 0 flags 0 addr 0
-A _GSFINAL size 0 flags 0 addr 0
-A _CABS size 0 flags 0 addr 0
-T 00 00
-R 00 00 00 00
-T 00 00
-R 00 00 00 00
-T 00 00 DD E5 DD 21 04 00 DD 39 DD 6E 00 DD 66 01
-R 00 00 00 00
-T 0E 00 DD 5E 02 DD 56 03 DD 7E 05 32 A8 00 DD 7E
-R 00 00 00 00 00 0C 00 00
-T 1C 00 04 22 5E 00 D5 B7 28 39 D5 DD E1 D9 DD 6E
-R 00 00 00 00 00 04 00 00
-T 2A 00 00 DD 66 01 3D 28 29 D9 DD 4E 02 DD 46 03
-R 00 00 00 00
-T 38 00 DD 5E 04 DD 56 05 DD 6E 06 DD 66 07 3D D9
-R 00 00 00 00
-T 46 00 28 12 DD 4E 08 DD 46 09 DD 5E 0A DD 56 0B
-R 00 00 00 00
-T 54 00 D5 C5 DD E1 FD E1
-R 00 00 00 00
-T 5A 00
-R 00 00 00 00
-T 5A 00 E5 F1 D9
-R 00 00 00 00
-T 5D 00
-R 00 00 00 00
-T 5D 00 CD 00 00 DD E3 08 3A A8 00 B7 28 3A D9 08
-R 00 00 00 00 00 09 00 00
-T 6B 00 F5 E1 DD 75 00 DD 74 01 D9 08 3D 28 2B DD
-R 00 00 00 00
-T 79 00 71 02 DD 70 03 DD 73 04 DD 72 05 DD 75 06
-R 00 00 00 00
-T 87 00 DD 74 07 3D 28 16 D9 E1 DD 75 08 DD 74 09
-R 00 00 00 00
-T 95 00 FD E5 E1 DD 75 0A DD 74 0B D9 08 DD E1 C9
-R 00 00 00 00
-T A3 00
-R 00 00 00 00
-T A3 00 08 E1 DD E1 C9
-R 00 00 00 00
-T A8 00
-R 00 00 00 00
-T A8 00 00
-R 00 00 00 00
-</REL>
-<ADB>
-</ADB>
-</FILE>
 
 <FILE>
 BiosCall
@@ -589,6 +524,65 @@ R 00 00 00 00 02 09 00 00
 T 45 00 00 00 39 23 7E 6F DD F9 DD E1 C9
 R 00 00 00 00
 T 50 00
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+AsmCall
+<REL>
+XL2
+H 9 areas 2 global symbols
+M AsmCall
+O -mz80
+S .__.ABS. Def0000
+A _CODE size A3 flags 0 addr 0
+S _AsmCall Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 DD E5 DD 21 04 00 DD 39 DD 6E 00 DD 66 01
+R 00 00 00 00
+T 0E 00 DD 5E 02 DD 56 03 DD 7E 05 F5 DD 7E 04 D5
+R 00 00 00 00
+T 1C 00 D5 DD E1 11 5D 00 D5 E5 B7 C8 D9 DD 6E 00
+R 00 00 00 00 00 06 00 00
+T 2A 00 DD 66 01 3D 28 29 D9 DD 4E 02 DD 46 03 DD
+R 00 00 00 00
+T 38 00 5E 04 DD 56 05 DD 6E 06 DD 66 07 3D D9 28
+R 00 00 00 00
+T 46 00 12 DD 4E 08 DD 46 09 DD 5E 0A DD 56 0B D5
+R 00 00 00 00
+T 54 00 C5 DD E1 FD E1
+R 00 00 00 00
+T 59 00
+R 00 00 00 00
+T 59 00 E5 F1 D9 C9
+R 00 00 00 00
+T 5D 00
+R 00 00 00 00
+T 5D 00 DD E3 08 F1 B7 28 3A D9 08 F5 E1 DD 75 00
+R 00 00 00 00
+T 6B 00 DD 74 01 D9 08 3D 28 2B DD 71 02 DD 70 03
+R 00 00 00 00
+T 79 00 DD 73 04 DD 72 05 DD 75 06 DD 74 07 3D 28
+R 00 00 00 00
+T 87 00 16 D9 E1 DD 75 08 DD 74 09 FD E5 E1 DD 75
+R 00 00 00 00
+T 95 00 0A DD 74 0B D9 08 DD E1 C9
+R 00 00 00 00
+T 9E 00
+R 00 00 00 00
+T 9E 00 08 E1 DD E1 C9
 R 00 00 00 00
 </REL>
 <ADB>

@@ -1,20 +1,14 @@
-/* Obsolete Procedure Call (OPC) server for MSX-DOS v1.0
-   By Konamiman 12/2017
+/* Obsolete Procedure Call (OPC) server core
+   By Konamiman 1/2018 - www.konamiman.com
 
    Compilation command line:
    
-   sdcc --code-loc 0x180 --data-loc 0 -mz80 --disable-warning 196
-        --no-std-crt0 crt0msx_msxdos_advanced.rel msxchar.lib asm.lib opc.c
-   hex2bin -e com opc.ihx
-   
-   msxchar.lib, asm.lib, asm.h and crt0msx_msxdos_advanced.rel
-   are available at www.konamiman.com
-   
-   (You don't need MSXCHAR.LIB if you manage to put proper PUTCHAR.REL,
-   GETCHAR.REL and PRINTF.REL in the standard Z80.LIB... I couldn't manage to
-   do it, I get a "Library not created with SDCCLIB" error)
-   
-   Comments are welcome: konamiman@konamiman.com
+   sdcc -mz80 --disable-warning 196 --disable-warning 85 
+        --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-size
+        -c opcs_core.c
+
+   Needs to be linked with modules that implement the functions in env.h and transport.h
+   and with asm.lib
 */
 
 //#define DEBUG
@@ -22,7 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "asm.h"
+#include "../lib/asm.h"
 #include "types.h"
 #include "env.h"
 #include "transport.h"
@@ -46,7 +40,6 @@ enum PendingCommandState {
 
 #define SEND_CHUNK_SIZE 512
 
-void AsmCall2(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail);
 
     /* Variables */
 
@@ -566,115 +559,3 @@ void WriteToPort(byte portNumber, byte value)
     __endasm;
 }
 
-#if 0
-void AsmCall2(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail) __naked
-{
-	__asm
-	push    ix
-    ld      ix,#4
-    add     ix,sp
-
-    ld      l,(ix)  ;HL=Routine address
-    ld      h,1(ix)
-    ld      e,2(ix) ;DE=regs address
-    ld      d,3(ix)
-	ld  a,5(ix) ;A=out registers detail
-	push    af
-	ld	a,4(ix)	;A=in registers detail
-
-    push    de
-
-    push    de
-    pop     ix   ;IX=&Z80regs
-
-    ld  de,#CONT
-    push    de
-    push    hl
-
-	or	a
-	ret     z   ;Execute code, then CONT (both in stack)
-
-	exx
-	ld	l,(ix)
-	ld	h,1(ix)	;AF
-	dec	a
-	jr	z,ASMRUT_DOAF
-	exx
-
-	ld      c,2(ix) ;BC, DE, HL
-    ld      b,3(ix)
-    ld      e,4(ix)
-    ld      d,5(ix)
-    ld      l,6(ix)
-    ld      h,7(ix)
-	dec	a
-	exx
-	jr	z,ASMRUT_DOAF
-
-    ld      c,8(ix)	 ;IX
-    ld      b,9(ix)
-    ld      e,10(ix) ;IY
-    ld      d,11(ix)
-	push	de
-	push	bc
-	pop	ix
-	pop	iy
-
-ASMRUT_DOAF:
-	push	hl
-	pop	af
-	exx
-
-    ret  ;Execute code, then CONT (both in stack)
-CONT:
-
-    ex      (sp),ix ;IX to stack, now IX=&Z80regs
-	ex	af,af	;Alternate AF
-
-	pop     af  ;out registers detail
-	or	a
-	jr	z,CALL_END
-
-	exx		;Alternate HLDEBC
-	ex	af,af	;Main AF
-	push	af
-	pop	hl
-	ld	(ix),l
-	ld	1(ix),h
-	exx		;Main HLDEBC
-	ex	af,af	;Alternate AF
-	dec	a
-	jr	z,CALL_END
-
-    ld      2(ix),c ;BC, DE, HL
-    ld      3(ix),b
-    ld      4(ix),e
-    ld      5(ix),d
-    ld      6(ix),l
-    ld      7(ix),h
-	dec	a
-	jr	z,CALL_END
-
-	exx		;Alternate HLDEBC
-    pop     hl
-    ld      8(ix),l ;IX
-    ld      9(ix),h
-    push    iy
-    pop     hl
-    ld      10(ix),l ;IY
-    ld      11(ix),h
-	exx		;Main HLDEBC
-
-	ex	af,af
-	pop	ix
-    ret
-
-CALL_END:
-	ex	af,af
-	pop	hl
-	pop	ix
-    ret
-
-	__endasm;
-}
-#endif

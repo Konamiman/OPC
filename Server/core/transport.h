@@ -2,7 +2,7 @@
 #define __TRANSPORT_H
 
 #include "types.h"
-#include "asm.h"
+//#include "asm.h"
 
 #define SEND_CHUNK_SIZE 512
 

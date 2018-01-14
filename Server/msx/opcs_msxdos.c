@@ -1,18 +1,13 @@
 /* Obsolete Procedure Call (OPC) server for MSX-DOS v1.0
-   By Konamiman 12/2017
+   By Konamiman 1/2018 - www.konamiman.com
 
    Compilation command line:
    
-   sdcc --code-loc 0x180 --data-loc 0 -mz80 --disable-warning 196
-        --no-std-crt0 crt0msx_msxdos_advanced.rel msxchar.lib asm.lib opc.c
+   sdcc -mz80 --code-loc 0x180 --data-loc 0
+        --disable-warning 196 --disable-warning 85
+        --no-std-crt0 crt0msx_msxdos_advanced.rel
+        putchar_msxdos.rel printf_simple.rel asm.lib opc.c
    hex2bin -e com opc.ihx
-   
-   msxchar.lib, asm.lib, asm.h and crt0msx_msxdos_advanced.rel
-   are available at www.konamiman.com
-   
-   (You don't need MSXCHAR.LIB if you manage to put proper PUTCHAR.REL,
-   GETCHAR.REL and PRINTF.REL in the standard Z80.LIB... I couldn't manage to
-   do it, I get a "Library not created with SDCCLIB" error)
    
    Comments are welcome: konamiman@konamiman.com
 */
@@ -22,9 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "asm.h"
-#include "env.h"
-#include "opcs_core.h"
+#include "../lib/asm.h"
+#include "../core/env.h"
+#include "../core/opcs_core.h"
 
 
     /* MSX-DOS functions */
