@@ -9,14 +9,17 @@ Server/**/*.lst
 Server/**/*.map
 Server/**/*.noi
 Server/**/*.sym
-Server/**/*.asm
+Server/**/makefile
+
+Server/msx/opcs.asm
+Server/msx/opcs.rel
+Server/msx/opcs_core.*
+Server/msx/transport_tcp-unapi.asm
+Server/msx/transport_tcp-unapi.rel
+Server/msx/crt0_msxbasic.rel
 
 Server/core/*.rel
 Server/msx/*.rel
-
-Server/**/OPC.c
-Server/**/OPC.rel
-Server/**/OPC.com
 
 sandbox/
 

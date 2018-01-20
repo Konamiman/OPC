@@ -21,9 +21,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "asm.h"
-#include "env.h"
-#include "opcs_core.h"
+#include "../lib/asm.h"
+#include "../core/env.h"
+#include "../core/opcs_core.h"
 
 #define DefaultPort 3434
 

@@ -1,9 +1,9 @@
 #include <stdio.h>
-#include "asm.h"
-#include "types.h"
-#include "debug.h"
+#include "../lib/asm.h"
+#include "../core/types.h"
+#include "../core/debug.h"
 
-#include "transport.h"
+#include "../core/transport.h"
 
 enum TcpipUnapiFunctions {
     UNAPI_GET_INFO = 0,
