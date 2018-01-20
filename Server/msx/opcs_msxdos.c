@@ -3,11 +3,10 @@
 
    Compilation command line:
    
-   sdcc -mz80 --code-loc 0x180 --data-loc 0
-        --disable-warning 196 --disable-warning 85
-        --no-std-crt0 crt0msx_msxdos_advanced.rel
-        putchar_msxdos.rel printf_simple.rel asm.lib opc.c
-   hex2bin -e com opc.ihx
+   sdcc -mz80 --code-loc 0x180 --data-loc 0 --no-std-crt0 crt0msx_msxdos_advanced.rel
+        asm.lib printf_simple.rel opcs_core.rel transport_tcp-unapi.rel putchar_msxdos.rel
+        opcs_msxdos.c
+   hex2bin -e com opcs_msxdos.ihx
    
    Comments are welcome: konamiman@konamiman.com
 */
@@ -38,7 +37,7 @@
 
 #define ToLowerCase(c) ((c) | 32)
 
-#define SERVER_MAX_ADDRESS 0x2800
+#define SERVER_MAX_ADDRESS 0x24FF
 #define IsProhibitedAddress(address) ((bool)(address >= (byte*)100 && address <= (byte*)SERVER_MAX_ADDRESS))
 
 

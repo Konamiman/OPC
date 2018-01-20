@@ -3,11 +3,9 @@
 
    Compilation command line:
    
-   sdcc -mz80 --disable-warning 196 --disable-warning 85 
-        --max-allocs-per-node 100000 --allow-unsafe-read --opt-code-size
-        -c opcs_core.c
+   sdcc -mz80 --disable-warning 196 --disable-warning 85 -c opcs_core.c
 
-   Needs to be linked with modules that implement the functions in env.h and transport.h
+   Needs to be linked with a program/modules that implement the functions in env.h and transport.h,
    and with asm.lib
 */
 
@@ -98,30 +96,29 @@ byte readPortBuffer[SEND_CHUNK_SIZE];
 
     /* Function prototypes */
 
-int GetByteFromConnection();
-byte ProcessFirstCommandByte(byte datum);
-byte ProcessNextCommandByte(byte datum);
-byte ProcessNextByteToWrite(byte datum);
-void RunCompletedCommand();
-void SendPortBytes(byte port, uint length, bool increment);
-void SendMemoryBytes(byte* address, uint length, bool lockAddress);
-void LoadRegistersBeforeExecutingCode(byte length);
-void SendResponseAfterExecutingCode(byte length);
-void ProcessReceivedByte(byte datum);
-void SendErrorMessage(char* message);
-void SendByte(byte datum, bool push);
-bool HandleConnectionLifetime();
-void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
-void WriteToPort(byte portNumber, byte value);
+static byte ProcessFirstCommandByte(byte datum);
+static byte ProcessNextCommandByte(byte datum);
+static byte ProcessNextByteToWrite(byte datum);
+static void RunCompletedCommand();
+static void SendPortBytes(byte port, uint length, bool increment);
+static void SendMemoryBytes(byte* address, uint length, bool lockAddress);
+static void LoadRegistersBeforeExecutingCode(byte length);
+static void SendResponseAfterExecutingCode(byte length);
+static void ProcessReceivedByte(byte datum);
+static void SendErrorMessage(char* message);
+static void SendByte(byte datum, bool push);
+static bool HandleConnectionLifetime();
+static void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement);
+static void WriteToPort(byte portNumber, byte value);
 
 #define Printf1(msg, param) {sprintf(errorMessageBuffer, msg, param); Print(errorMessageBuffer);}
 #define Printf2(msg, param1, param2) {sprintf(errorMessageBuffer, msg, param1, param2); Print(errorMessageBuffer);}
 #define Printf3(msg, param1, param2, param3) {sprintf(errorMessageBuffer, msg, param1, param2, param3); Print(errorMessageBuffer);}
 
 
-/**********************
- ***  MAIN is here  ***
- **********************/
+/*********************************
+ *** Server start entry point  ***
+ *********************************/
 
 int StartOpcServer(void* transportInitData, bool _verbose)
 {
@@ -138,6 +135,7 @@ int StartOpcServer(void* transportInitData, bool _verbose)
         DoEnvironmentStuff();
         DoTransportStuff();
         if(!HandleConnectionLifetime()) {
+            ShutDownTransport();
             return 2;
         }
 
@@ -152,11 +150,11 @@ int StartOpcServer(void* transportInitData, bool _verbose)
 }
 
 
-/****************************
- ***  FUNCTIONS are here  ***
- ****************************/
+/***************************
+ ***  Private functions  ***
+ ***************************/
 
-void ProcessReceivedByte(byte datum)
+static void ProcessReceivedByte(byte datum)
 {
     switch(pendingCommand.state)
     {
@@ -180,7 +178,7 @@ void ProcessReceivedByte(byte datum)
     }
 }
 
-byte ProcessFirstCommandByte(byte datum)
+static byte ProcessFirstCommandByte(byte datum)
 {
     byte commandCode = datum & 0xF0;
 
@@ -227,7 +225,7 @@ byte ProcessFirstCommandByte(byte datum)
     return PCMD_NONE;
 }
 
-byte ProcessNextCommandByte(byte datum)
+static byte ProcessNextCommandByte(byte datum)
 {
     uint length;
     byte* address;
@@ -278,7 +276,7 @@ byte ProcessNextCommandByte(byte datum)
     return PCMD_WRITING;
 }
 
-byte ProcessNextByteToWrite(byte datum)
+static byte ProcessNextByteToWrite(byte datum)
 {
     if(pendingCommand.commandCode == OPC_WRITE_MEM) {
         if(!pendingCommand.stateData.memWrite.isErrored) {
@@ -311,7 +309,7 @@ byte ProcessNextByteToWrite(byte datum)
     }
 }
 
-void RunCompletedCommand()
+static void RunCompletedCommand()
 {
     byte* address;
     byte port;
@@ -374,7 +372,7 @@ void RunCompletedCommand()
     }
 }
 
-void SendPortBytes(byte port, uint length, bool increment)
+static void SendPortBytes(byte port, uint length, bool increment)
 {
     uint remaining = length;
     uint sendSize;
@@ -389,7 +387,7 @@ void SendPortBytes(byte port, uint length, bool increment)
     }
 }
 
-void SendMemoryBytes(byte* address, uint length, bool lockAddress)
+static void SendMemoryBytes(byte* address, uint length, bool lockAddress)
 {
     uint remaining;
     uint sendSize;
@@ -413,7 +411,7 @@ void SendMemoryBytes(byte* address, uint length, bool lockAddress)
     }
 }
 
-void LoadRegistersBeforeExecutingCode(byte length)
+static void LoadRegistersBeforeExecutingCode(byte length)
 {
     short* regsPointer = (short*)&(pendingCommand.buffer[3]);
 
@@ -446,7 +444,7 @@ void LoadRegistersBeforeExecutingCode(byte length)
     //TODO: Set alternate registers
 }
 
-void SendResponseAfterExecutingCode(byte length)
+static void SendResponseAfterExecutingCode(byte length)
 {
     short* regsPointer = (short*)&(pendingCommand.buffer[3]);
     pendingCommand.buffer[2] = 0; //First byte of "ok" response
@@ -474,19 +472,19 @@ void SendResponseAfterExecutingCode(byte length)
     SendBytes((byte*)&(pendingCommand.buffer[2]), length+1, true);
 }
 
-void SendErrorMessage(char* message)
+static void SendErrorMessage(char* message)
 {
     byte length = strlen(message);
     SendByte(length, false);
     SendBytes((byte*)message, length, true);
 }
 
-void SendByte(byte datum, bool push)
+static void SendByte(byte datum, bool push)
 {
     SendBytes(&datum, 1, push);
 }
 
-bool HandleConnectionLifetime()
+static bool HandleConnectionLifetime()
 {
     bool wasPreviouslyConnected = clientIsConnected;
     clientIsConnected = ClientIsConnected();
@@ -508,7 +506,7 @@ bool HandleConnectionLifetime()
     return true;
 }
 
-void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement) __naked
+static void ReadFromPort(byte portNumber, byte* destinationAddress, uint size, bool autoIncrement) __naked
 {
     __asm
 
@@ -543,7 +541,7 @@ RFP_INCC:
     __endasm;
 }
 
-void WriteToPort(byte portNumber, byte value)
+static void WriteToPort(byte portNumber, byte value)
 {
     __asm
 

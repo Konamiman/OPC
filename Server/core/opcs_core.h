@@ -4,7 +4,11 @@
 /*
 Starts the OPC server.
 
-- It will run until MustTerminateServer() return true
+- Returns the reason why the server stopped:
+  0: MustTerminateServer() returned true
+  1: InitializeTransport() returned false
+  2: HandleConnectionLifetime() returned false
+  
 - DoEnvironmentStuff() and DoTransportStuff() will be invoked continuously
 */
 int StartOpcServer(void* transportInitData, bool _verbose);

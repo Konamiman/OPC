@@ -1,4 +1,4 @@
-ALLOCS = 10000 # Higher value = smaller generated file but slower compilation 
+ALLOCS = 10000 # Higher value = smaller generated file but slower compilation. Recommended for release: 100000
 COMMON_FLAGS = -mz80 --disable-warning 196 --disable-warning 85 --max-allocs-per-node $(ALLOCS) --allow-unsafe-read --opt-code-size
 SERVER_FLAGS = $(COMMON_FLAGS) -o opcs.ihx --data-loc 0 --no-std-crt0
 SERVER_LIBS =  ../lib/asm.lib ../lib/printf_simple.rel opcs_core.rel transport_tcp-unapi.rel
@@ -53,20 +53,4 @@ clean:
 	$(RM) transport_tcp-unapi.asm
 	$(RM) transport_tcp-unapi.rel
 	$(RM) crt0_msxbasic.rel
-
-copy:
-	echo --- Mounting disk image file...
-	call .\mount.bat
-	if errorlevel 1 goto :end
-
-	echo --- Copying files...
-	copy printf_test.com Y:pt.com
-	copy printf_test.bin Y:pt.bin
-
-	echo --- Unmounting disk image file...
-	rem ping 1.1.1.1 -n 1 -w 1500 >NUL
-	call .\unmount.bat
-
-
-
-
+	

@@ -1,4 +1,4 @@
-ALLOCS = 100000 # Higher value = smaller generated file but slower compilation 
+ALLOCS = 10000 # Higher value = smaller generated file but slower compilation. Recommended for release: 100000
 COMMON_FLAGS = -mz80 --disable-warning 196 --disable-warning 85 --max-allocs-per-node $(ALLOCS) --allow-unsafe-read --opt-code-size
 SERVER_FLAGS = $(COMMON_FLAGS) -o opcs.ihx --data-loc 0 --no-std-crt0
 SERVER_LIBS =  ../lib/asm.lib ../lib/printf_simple.rel opcs_core.rel transport_tcp-unapi.rel
