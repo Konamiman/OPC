@@ -7,7 +7,7 @@ ifeq ($(OS),Windows_NT)
 	RM = del
 endif
 
-all: opcs.com opcs.bin
+all: com bin
 
 com: opcs.com
 
@@ -29,16 +29,6 @@ opcs_core.rel: ../core/opcs_core.c
 
 transport_tcp-unapi.rel: transport_tcp-unapi.c
 	sdcc -c $(COMMON_FLAGS) transport_tcp-unapi.c
-
-delbin:
-	$(RM) opcs.com
-	$(RM) opcs.bin
-
-delall:
-	$(RM) opcs_core.rel
-	$(RM) transport_tcp-unapi.rel
-	$(RM) opcs.com
-	$(RM) opcs.bin
 
 clean:
 	$(RM) *.ihx

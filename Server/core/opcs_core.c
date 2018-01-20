@@ -556,4 +556,3 @@ static void WriteToPort(byte portNumber, byte value)
 
     __endasm;
 }
-

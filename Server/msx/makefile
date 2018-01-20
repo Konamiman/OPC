@@ -1,4 +1,4 @@
-ALLOCS = 10000 # Higher value = smaller generated file but slower compilation. Recommended for release: 100000
+ALLOCS = 100000 # Higher value = smaller generated file but slower compilation. Recommended for release: 100000
 COMMON_FLAGS = -mz80 --disable-warning 196 --disable-warning 85 --max-allocs-per-node $(ALLOCS) --allow-unsafe-read --opt-code-size
 SERVER_FLAGS = $(COMMON_FLAGS) -o opcs.ihx --data-loc 0 --no-std-crt0
 SERVER_LIBS =  ../lib/asm.lib ../lib/printf_simple.rel opcs_core.rel transport_tcp-unapi.rel
@@ -7,7 +7,7 @@ ifeq ($(OS),Windows_NT)
 	RM = del
 endif
 
-all: opcs.com opcs.bin
+all: com bin
 
 com: opcs.com
 
@@ -29,16 +29,6 @@ opcs_core.rel: ../core/opcs_core.c
 
 transport_tcp-unapi.rel: transport_tcp-unapi.c
 	sdcc -c $(COMMON_FLAGS) transport_tcp-unapi.c
-
-delbin:
-	$(RM) opcs.com
-	$(RM) opcs.bin
-
-delall:
-	$(RM) opcs_core.rel
-	$(RM) transport_tcp-unapi.rel
-	$(RM) opcs.com
-	$(RM) opcs.bin
 
 clean:
 	$(RM) *.ihx
