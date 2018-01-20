@@ -18,7 +18,7 @@ opcs.com: opcs_msxdos.c opcs_core.rel transport_tcp-unapi.rel
 	hex2bin -e com opcs.ihx
 
 opcs.bin: opcs_msxbasic.c opcs_core.rel transport_tcp-unapi.rel crt0_msxbasic.rel
-	sdcc $(SERVER_FLAGS) -o opcs.ihx --code-loc 0x9800  crt0_msxbasic.rel $(SERVER_LIBS) lib/putchar_msxbasic.rel opcs_msxbasic.c
+	sdcc $(SERVER_FLAGS) -o opcs.ihx --code-loc 0x9820  crt0_msxbasic.rel $(SERVER_LIBS) lib/putchar_msxbasic.rel opcs_msxbasic.c
 	hex2bin -e bin opcs.ihx
 
 crt0_msxbasic.rel: crt0_msxbasic.asm

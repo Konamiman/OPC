@@ -11,6 +11,8 @@ Server/**/*.noi
 Server/**/*.sym
 Server/**/makefile
 
+Server/msx/opcs.bin
+Server/msx/opcs.com
 Server/msx/opcs.asm
 Server/msx/opcs.rel
 Server/msx/opcs_core.*
