@@ -1,0 +1,7 @@
+*.ihx
+*.lk
+*.lst
+*.map
+*.noi
+*.sym
+makefile
