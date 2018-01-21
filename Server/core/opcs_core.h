@@ -7,7 +7,7 @@ Starts the OPC server.
 - Returns the reason why the server stopped:
   0: MustTerminateServer() returned true
   1: InitializeTransport() returned false
-  2: HandleConnectionLifetime() returned false
+  2: WaitForClientConnection() returned false
   
 - DoEnvironmentStuff() and DoTransportStuff() will be invoked continuously
 */
