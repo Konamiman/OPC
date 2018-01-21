@@ -53,7 +53,7 @@ By Konamiman, 1/2018
                 WriteLine(
 @"
 Gets system information from a MSX computer running a OPC server on a TCP port.
-Usage: msxinfo <OPC server address> <OPC server port> [<code execution address in hex (default: 8000h)>]");
+Usage: msxinfo <OPC server address> <OPC server port> [<code execution address in hex (default: C000)>]");
                 return;
             }
 
@@ -65,7 +65,7 @@ Usage: msxinfo <OPC server address> <OPC server port> [<code execution address i
 
             if(args.Length == 2)
             {
-                executionAddress = 0x8000;
+                executionAddress = 0xC000;
             }
             else if (!ushort.TryParse(args[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out executionAddress))
             {

@@ -1,0 +1,8 @@
+opcs.bin
+opcs.com
+opcs.asm
+opcs.rel
+opcs_core.*
+transport_tcp-unapi.asm
+transport_tcp-unapi.rel
+/*.rel
